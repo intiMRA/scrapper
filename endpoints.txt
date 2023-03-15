@@ -1,0 +1,7 @@
+[
+    "https://www.countdown.co.nz/shop/specials",
+    "https://www.countdown.co.nz/shop/products/greatprice",
+    "https://www.newworld.co.nz/shop/specials",
+    "https://www.newworld.co.nz/shop/everyday-low-price",
+    "https://www.paknsave.co.nz/shop/deals"
+]
