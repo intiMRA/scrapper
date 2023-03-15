@@ -53,4 +53,8 @@ from Database import Database
 # driver.close()
 
 db = Database()
+db.startConnection()
 db.testConnection()
+db.createTable(tableName="NewWorld", tablePatameters=["itemName VARCHAR(255)", "itemPrice VARCHAR(255)"])
+db.printTables()
+db.closeConnection()
