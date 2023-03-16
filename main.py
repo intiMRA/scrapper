@@ -17,3 +17,4 @@ def createTables():
 
 def fetchData():
     return
+Apis().fetchCountdownItems()
