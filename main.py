@@ -15,4 +15,5 @@ def createTables():
     db.printTables()
     db.closeConnection()
 
-Apis().fetchCountdownItems()
+def fetchData():
+    return
