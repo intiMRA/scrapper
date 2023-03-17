@@ -17,5 +17,9 @@ def clusterWords(words: [str]):
         clustered_sentences[cluster_id].append(words[sentence_id])
 
     for i, cluster in enumerate(clustered_sentences):
+        print("_"*100)
         print("Cluster ", i + 1)
-        print(cluster, "\n")
+        for c in cluster:
+            print(c)
+            print("\n")
+        print("_" * 100)

@@ -23,6 +23,7 @@ def createTables():
 def fetchData():
     api = Apis()
     api.fetchCountdownItems()
+    api.fetchNewworldItems()
 
 
 def clusterData():
@@ -34,7 +35,8 @@ def clusterData():
     for i in nw:
         ar = i.split(",")
         nwDict[ar[0]] = ar[1]
-        nwArr.append(str(ar[0]))
+        if ar[2] not in nwArr:
+            nwArr.append(str(ar[2]))
 
     cdDict = {}
     cdArr = []
@@ -42,8 +44,9 @@ def clusterData():
     for i in cd:
         ar = i.split(",")
         cdDict[ar[0]] = ar[1]
-        cdArr.append(str(ar[0]))
-    print(cdArr + nwArr)
+        if ar[2] not in cdArr:
+            cdArr.append(str(ar[2]))
+
     clusterWords(cdArr + nwArr)
 
-Apis().fetchNewworldItems()
+clusterData()

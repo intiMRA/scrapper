@@ -9,9 +9,11 @@ from pathlib import Path
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
+
 class CountdownKeys(Enum):
     products = "products"
     items = "items"
+    dasFacets = "dasFacets"
 
 
 class NewWorldKeys(Enum):
@@ -28,6 +30,7 @@ class NewWorldItemKeys(Enum):
     name = "DisplayName"
     price = "prices"
     brand = "brand"
+    category = "category1"
 
 
 class CountdownItemKeys(Enum):
@@ -36,7 +39,6 @@ class CountdownItemKeys(Enum):
     size = "size"
     salePrice = "salePrice"
     volumeSize = "volumeSize"
-    barcode = "barcode"
     brand = "brand"
 
 
@@ -69,27 +71,27 @@ class Apis:
 
     def fetchCountdownItems(self):
         countDownDataFile = open("countDownData.csv", mode="w")
-        countDownDataFile.write("name, price\n")
         lastPage = self._getCountdownLastPage()
-        for pageNumber in range(1, lastPage + 1):
+        for pageNumber in range(1, 4 + 1):
             response = requests.get(
                 f'https://www.countdown.co.nz/api/v1/products?target=specials&page={pageNumber}',
                 headers=self._countDownHeaders)
             res = json.loads(response.text)
             items = res[CountdownKeys.products.value][CountdownKeys.items.value]
-            for item in items:
-                print(item.keys())
+            categories = res[CountdownKeys.dasFacets.value]
+            for item, category in zip(items, categories):
                 countDownDataFile.write(
                     f'{item[CountdownItemKeys.name.value]},'
-                    f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]}\n')
+                    f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
+                    f'{category[CountdownItemKeys.name.value]}\n'
+                )
         countDownDataFile.close()
 
     def fetchNewworldItems(self):
         storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
         newWorldDataFile = open("newWorldData.csv", mode="w")
-        newWorldDataFile.write("name, price\n")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
+                      '"sortFacetValuesBy":"alpha","hitsPerPage":"100","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
@@ -100,9 +102,14 @@ class Apis:
         jsonResponse = json.loads(response.text)
         items = jsonResponse[NewWorldKeys.products.value]
         for item in items:
+            price = 1
+            if storeId in item[NewWorldItemKeys.price.value].keys():
+                price = item[NewWorldItemKeys.price.value][storeId]
             newWorldDataFile.write(
                 f'{item[NewWorldItemKeys.name.value]},'
-                f'{item[NewWorldItemKeys.price.value][storeId]}\n')
+                f'{price},'
+                f'{str(item[NewWorldItemKeys.category.value]).replace("[", "").replace("]", "")}\n'
+            )
         newWorldDataFile.close()
 
     def _getNewWorldToken(self) -> str:
@@ -124,8 +131,8 @@ class Apis:
         except:
             # log in
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/user/login'
-            body = '{' +\
-                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"MNW"' +\
+            body = '{' + \
+                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"MNW"' + \
                    '}'
             response = requests.post(url, headers=self._newWorldHeaders, data=body)
             responseJson = json.loads(response.text)
@@ -135,7 +142,6 @@ class Apis:
             refreshTokenFile.write(newRefreshToken)
             refreshTokenFile.close()
             return f'Bearer {bearerToken}'
-
 
     def _getCountdownLastPage(self) -> int:
         maxSupportedPages = 300
