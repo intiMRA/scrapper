@@ -46,5 +46,4 @@ def clusterData():
     print(cdArr + nwArr)
     clusterWords(cdArr + nwArr)
 
-
-Database().testConnection()
+Apis().fetchNewworldItems()

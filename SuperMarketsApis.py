@@ -2,7 +2,12 @@ import requests
 import re
 import json
 from enum import Enum
+from dotenv import load_dotenv
+import os
+from pathlib import Path
 
+dotenv_path = Path('./venv/.env')
+load_dotenv(dotenv_path=dotenv_path)
 
 class CountdownKeys(Enum):
     products = "products"
@@ -13,7 +18,9 @@ class NewWorldKeys(Enum):
     products = "hits"
     storesAvailable = "onPromotion"
     accessToken = "accessToken"
+    access_token = "access_token"
     refreshToken = "refreshToken"
+    refresh_token = "refresh_token"
 
 
 class NewWorldItemKeys(Enum):
@@ -82,7 +89,7 @@ class Apis:
         newWorldDataFile = open("newWorldData.csv", mode="w")
         newWorldDataFile.write("name, price\n")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","hitsPerPage":"100","facetFilters":[' \
+                      '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
@@ -100,7 +107,7 @@ class Apis:
 
     def _getNewWorldToken(self) -> str:
         try:
-            refreshTokenFile = open("toke.txt", mode="r")
+            refreshTokenFile = open("refreshToken.txt", mode="r")
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/users/login/refreshtoken'
             refreshToken = refreshTokenFile.readline(1)
             body = f'"refreshToken":"{refreshToken}"'
@@ -110,18 +117,31 @@ class Apis:
             bearerToken = responseJson[NewWorldKeys.accessToken.value]
             newRefreshToken = responseJson[NewWorldKeys.refreshToken.value]
             refreshTokenFile.close()
-            refreshTokenFile = open("toke.txt", mode="w")
+            refreshTokenFile = open("refreshToken.txt", mode="w")
             refreshTokenFile.write(newRefreshToken)
+            refreshTokenFile.close()
             return f'Bearer {bearerToken}'
         except:
             # log in
-            return ""
+            url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/user/login'
+            body = '{' +\
+                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"MNW"' +\
+                   '}'
+            response = requests.post(url, headers=self._newWorldHeaders, data=body)
+            responseJson = json.loads(response.text)
+            bearerToken = responseJson[NewWorldKeys.access_token.value]
+            newRefreshToken = responseJson[NewWorldKeys.refresh_token.value]
+            refreshTokenFile = open("refreshToken.txt", mode="w")
+            refreshTokenFile.write(newRefreshToken)
+            refreshTokenFile.close()
+            return f'Bearer {bearerToken}'
+
 
     def _getCountdownLastPage(self) -> int:
         maxSupportedPages = 300
         response = requests.get(f'https://www.countdown.co.nz/api/v1/products?target=specials&page={maxSupportedPages}',
                                 headers=self._countDownHeaders)
-        extracted = re.findall(r'and [0-9]+', response.text)
+        extracted = re.findall(r"and [0-9]+", response.text)
         if len(extracted) > 0:
             number = str(extracted[0]).strip("and ")
             return int(number)
