@@ -1,11 +1,12 @@
 from dotenv import load_dotenv
-load_dotenv()
 import os
 import MySQLdb
 from pathlib import Path
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
+
+
 class Database:
     _connection = None
     _cursor = None
@@ -13,44 +14,45 @@ class Database:
     def insertRow(self):
         return
 
-    def createTable(self, tableName: str, tablePatameters: [str]):
+    def createTable(self, tableName: str, tableParameters: [str]):
         paramsString: str = ""
-        for parameter in tablePatameters:
+        for parameter in tableParameters:
             paramsString += (parameter + ",")
         paramsString = paramsString[:-1]
-        self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {tableName} ({paramsString})")
+        self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {tableName} ({paramsString})")
 
     def printTables(self):
-        self.cursor.execute("SHOW TABLES")
-        for table in self.cursor:
+        self._cursor.execute("SHOW TABLES")
+        for table in self._cursor:
             print(table)
+
     def fetchItems(self):
         return
 
     def testConnection(self):
-        self.cursor.execute("select @@version")
-        version = self.cursor.fetchone()
+        self.startConnection()
+        self._cursor.execute("select @@version")
+        version = self._cursor.fetchone()
 
         if version:
             print('Running version: ', version)
         else:
             print('Not connected.')
+        self.closeConnection()
 
     def startConnection(self):
-        self.connection = MySQLdb.connect(
-            host = os.getenv("HOST"),
-            user = os.getenv("USERNAME"),
-            passwd = os.getenv("PASSWORD"),
-            db = os.getenv("DATABASE"),
-            ssl_mode = "VERIFY_IDENTITY",
-            ssl = {
+        self._connection = MySQLdb.connect(
+            host=os.getenv("HOST"),
+            user=os.getenv("USERNAME"),
+            passwd=os.getenv("PASSWORD"),
+            db=os.getenv("DATABASE"),
+            ssl_mode="VERIFY_IDENTITY",
+            ssl={
                 "ca": "/etc/ssl/cert.pem"
             }
         )
-        self.cursor = self.connection.cursor()
+        self._cursor = self._connection.cursor()
 
     def closeConnection(self):
-        self.connection.close()
-        self.cursor = None
-
-
+        self._connection.close()
+        self._cursor = None
