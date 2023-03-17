@@ -30,23 +30,37 @@ def clusterData():
     cd = open("countDownData.csv")
     nw = open("newWorldData.csv")
 
-    nwDict = {}
-    nwArr = []
+    dictionary: {str: [{str: str}]} = {}
+    categories: [str] = []
     for i in nw:
         ar = i.split(",")
-        nwDict[ar[0]] = ar[1]
-        if ar[2] not in nwArr:
-            nwArr.append(str(ar[2]))
-
-    cdDict = {}
-    cdArr = []
+        category = ar[2].replace("'", "").strip(" ")
+        if category not in dictionary.keys():
+            categories.append(category)
+            dictionary[category] = []
+        dictionary[category].append({"name": ar[0], "price": ar[1]})
 
     for i in cd:
         ar = i.split(",")
-        cdDict[ar[0]] = ar[1]
-        if ar[2] not in cdArr:
-            cdArr.append(str(ar[2]))
+        category = ar[2].replace("'", "").strip(" ")
+        if category not in dictionary.keys():
+            categories.append(category)
+            dictionary[category] = []
+        dictionary[category].append({"name": ar[0], "price": ar[1]})
 
-    clusterWords(cdArr + nwArr)
+    clusterst = clusterWords(categories)
+    for i in range(0, len(clusterst)):
+        print(i + 1)
+        count = -1
+        cat = ""
+        for c in clusterst[i]:
+            clusterItems = dictionary[c]
+            if len(dictionary[c]) > count:
+                cat = c
+                count = len(dictionary[c])
+            for item in clusterItems:
+                print(item["name"], item["price"])
+        print(cat.upper())
+        print("-"*100)
 
 clusterData()
