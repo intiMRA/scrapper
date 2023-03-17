@@ -1,24 +1,29 @@
-
 from Database import Database
 from enum import Enum
 from SuperMarketsApis import Apis
-from Cluster import Cluster
+from Cluster import clusterWords
+
+
 class SupportedStores(Enum):
     newWorld = "NewWorld"
     PackNSave = "packNSave"
     countdown = "Countdown"
+
+
 def createTables():
     db = Database()
     db.startConnection()
     db.testConnection()
     for store in SupportedStores:
-        db.createTable(tableName = store.value, tableParameters= ["itemName VARCHAR(255)", "itemPrice VARCHAR(255)"])
+        db.createTable(tableName=store.value, tableParameters=["itemName VARCHAR(255)", "itemPrice VARCHAR(255)"])
     db.printTables()
     db.closeConnection()
+
 
 def fetchData():
     api = Apis()
     api.fetchCountdownItems()
+
 
 def clusterData():
     cd = open("countDownData.csv")
@@ -39,6 +44,7 @@ def clusterData():
         cdDict[ar[0]] = ar[1]
         cdArr.append(str(ar[0]))
     print(cdArr + nwArr)
-    Cluster().clusterWords(cdArr + nwArr)
+    clusterWords(cdArr + nwArr)
+
 
 Database().testConnection()

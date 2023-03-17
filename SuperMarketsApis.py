@@ -49,7 +49,7 @@ class Apis:
     }
 
     _token = ''
-    
+
     _newWorldHeaders = {
         'Host': 'api-prod.prod.fsniwaikato.kiwi',
         'Connection': 'keep-alive',

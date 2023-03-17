@@ -3,9 +3,11 @@ from webdriver_manager.chrome import ChromeDriverManager
 import re
 import time
 driver = webdriver.Chrome(ChromeDriverManager().install())
+newWorldId = "60928d93-06fa-4d8f-92a6-8c359e7e846d"
+pakNSaveId = "e1925ea7-01bc-4358-ae7c-c6502da5ab12"
 countdownUrlCall = "https://www.countdown.co.nz/shop/browse/departments"
-newWorldUrlCall = "https://www.newworld.co.nz/CommonApi/Navigation/MegaMenu?v=&storeId=60928d93-06fa-4d8f-92a6-8c359e7e846d"
-pakNSavwUrlCall = "https://www.paknsave.co.nz/CommonApi/Navigation/MegaMenu?v=&storeId=e1925ea7-01bc-4358-ae7c-c6502da5ab12"
+newWorldUrlCall = f'https://www.newworld.co.nz/CommonApi/Navigation/MegaMenu?v=&storeId={newWorldId}'
+pakNSavwUrlCall = f'https://www.paknsave.co.nz/CommonApi/Navigation/MegaMenu?v=&storeId={pakNSaveId}'
 urlRegex = r"/shop/[aA-zZ/0-9?\-=]+"
 endpoints = open("endpoints.txt", mode="w")
 endpoints.write("[\n")
