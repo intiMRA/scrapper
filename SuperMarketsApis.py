@@ -101,6 +101,7 @@ class Apis:
         response = requests.post(url, headers=self._newWorldHeaders, data=requestBody)
         jsonResponse = json.loads(response.text)
         items = jsonResponse[NewWorldKeys.products.value]
+        storeId = storeId.replace("-", "")
         for item in items:
             price = 1
             if storeId in item[NewWorldItemKeys.price.value].keys():
