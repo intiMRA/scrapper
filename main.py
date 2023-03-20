@@ -1,7 +1,7 @@
 from Database import Database
 from enum import Enum
 from SuperMarketsApis import Apis
-from Cluster import clusterWords
+from finalCategories import categories
 
 
 class SupportedStores(Enum):
@@ -31,36 +31,27 @@ def clusterData():
     nw = open("newWorldData.csv")
 
     dictionary: {str: [{str: str}]} = {}
-    categories: [str] = []
+
     for i in nw:
         ar = i.split(",")
-        category = ar[2].replace("'", "").strip(" ")
+        category = ar[2].replace("'", "").replace("\n", "")
         if category not in dictionary.keys():
-            categories.append(category)
             dictionary[category] = []
         dictionary[category].append({"name": ar[0], "price": ar[1]})
 
     for i in cd:
         ar = i.split(",")
-        category = ar[2].replace("'", "").strip(" ")
+        category = ar[2].replace("'", "").replace("\n", "")
         if category not in dictionary.keys():
-            categories.append(category)
             dictionary[category] = []
         dictionary[category].append({"name": ar[0], "price": ar[1]})
 
-    clusterst = clusterWords(categories)
-    for i in range(0, len(clusterst)):
-        print(i + 1)
-        count = -1
-        cat = ""
-        for c in clusterst[i]:
-            clusterItems = dictionary[c]
-            if len(dictionary[c]) > count:
-                cat = c
-                count = len(dictionary[c])
-            for item in clusterItems:
-                print(item["name"], item["price"])
-        print(cat.upper())
+    for parentKey in categories.keys():
+        print(parentKey + "\n")
+        for key in categories[parentKey]:
+            key = key.replace("'", "").strip(" ")
+            if key in dictionary:
+                for item in dictionary[key]:
+                    print(item["name"] + ", " + item["price"] + "\n")
         print("-"*100)
-
 clusterData()
