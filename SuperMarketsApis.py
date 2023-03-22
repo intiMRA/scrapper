@@ -33,6 +33,10 @@ class NewWorldItemKeys(Enum):
     category = "category1"
 
 
+class CountdownItemIgnoreKeys(Enum):
+    adds = "PromoTile"
+
+
 class CountdownItemKeys(Enum):
     name = "name"
     price = "price"
@@ -41,6 +45,7 @@ class CountdownItemKeys(Enum):
     volumeSize = "volumeSize"
     brand = "brand"
     type = "type"
+    category = "category"
 
 
 class Apis:
@@ -79,7 +84,12 @@ class Apis:
         dasFacets = ref[CountdownKeys.dasFacets.value]
         departments = []
         for cat in dasFacets:
-            departments.append({"name": cat["name"], "category": cat["name"].replace(" ", "").replace("&", "-").lower()})
+            name = cat[CountdownItemKeys.name.value]
+            departments.append({
+                CountdownItemKeys.name.value: name,
+                CountdownItemKeys.category.value:
+                    name.replace(" ", "").replace("&", "-").lower()
+            })
 
         return departments
 
@@ -100,12 +110,12 @@ class Apis:
                     print("DONE")
                     break
                 for item in items:
-                    if item[CountdownItemKeys.type.value] == "PromoTile":
+                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value:
                         continue
                     countDownDataFile.write(
                         f'{item[CountdownItemKeys.name.value]},'
                         f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
-                        f'{department["name"]}\n'
+                        f'{department[CountdownItemKeys.name.value]}\n'
                     )
         countDownDataFile.close()
 
