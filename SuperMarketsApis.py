@@ -40,6 +40,7 @@ class CountdownItemKeys(Enum):
     salePrice = "salePrice"
     volumeSize = "volumeSize"
     brand = "brand"
+    type = "type"
 
 
 class Apis:
@@ -52,7 +53,7 @@ class Apis:
         'Cache-Control': 'no-cache',
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, '
                       'like Gecko) Mobile/15E148',
-        'Referer': 'https://www.countdown.co.nz/shop/specials?page=5&inStockProductsOnly=true',
+        'Referer': 'https://www.countdown.co.nz/shop',
         'Connection': 'keep-alive',
         'Content-Type': 'application/json'
     }
@@ -69,22 +70,43 @@ class Apis:
         'Content-Type': 'application/json'
     }
 
+    def _fetchDepartments(self) -> [{str: str}]:
+        url = "https://www.countdown.co.nz/api/v1/products?target=specials"
+        response = requests.get(
+            url,
+            headers=self._countDownHeaders)
+        ref = json.loads(response.text)
+        dasFacets = ref[CountdownKeys.dasFacets.value]
+        departments = []
+        for cat in dasFacets:
+            departments.append({"name": cat["name"], "category": cat["name"].replace(" ", "").replace("&", "-").lower()})
+
+        return departments
+
     def fetchCountdownItems(self):
+        departments = self._fetchDepartments()
+        print(departments[0])
         countDownDataFile = open("countDownData.csv", mode="w")
-        lastPage = self._getCountdownLastPage()
-        for pageNumber in range(1, 4 + 1):
-            response = requests.get(
-                f'https://www.countdown.co.nz/api/v1/products?target=specials&page={pageNumber}',
-                headers=self._countDownHeaders)
-            res = json.loads(response.text)
-            items = res[CountdownKeys.products.value][CountdownKeys.items.value]
-            categories = res[CountdownKeys.dasFacets.value]
-            for item, category in zip(items, categories):
-                countDownDataFile.write(
-                    f'{item[CountdownItemKeys.name.value]},'
-                    f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
-                    f'{category[CountdownItemKeys.name.value]}\n'
-                )
+        for department in [departments[0]]:
+            url = f'https://www.countdown.co.nz/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
+                  "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
+            for pageNumber in range(1, 300):
+                response = requests.get(
+                    f'{url}&page={pageNumber}',
+                    headers=self._countDownHeaders)
+                res = json.loads(response.text)
+                items = res[CountdownKeys.products.value][CountdownKeys.items.value]
+                if len(items) == 0:
+                    print("DONE")
+                    break
+                for item in items:
+                    if item[CountdownItemKeys.type.value] == "PromoTile":
+                        continue
+                    countDownDataFile.write(
+                        f'{item[CountdownItemKeys.name.value]},'
+                        f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
+                        f'{department["name"]}\n'
+                    )
         countDownDataFile.close()
 
     def fetchNewworldItems(self):
@@ -143,14 +165,3 @@ class Apis:
             refreshTokenFile.write(newRefreshToken)
             refreshTokenFile.close()
             return f'Bearer {bearerToken}'
-
-    def _getCountdownLastPage(self) -> int:
-        maxSupportedPages = 300
-        response = requests.get(f'https://www.countdown.co.nz/api/v1/products?target=specials&page={maxSupportedPages}',
-                                headers=self._countDownHeaders)
-        extracted = re.findall(r"and [0-9]+", response.text)
-        if len(extracted) > 0:
-            number = str(extracted[0]).strip("and ")
-            return int(number)
-
-        return maxSupportedPages
