@@ -1,10 +1,11 @@
 import requests
-import re
+import time
 import json
 from enum import Enum
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+import finalCategories
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -90,14 +91,13 @@ class Apis:
                 CountdownItemKeys.category.value:
                     name.replace(" ", "").replace("&", "-").lower()
             })
-
         return departments
 
     def fetchCountdownItems(self):
         departments = self._fetchDepartments()
-        print(departments[0])
         countDownDataFile = open("countDownData.csv", mode="w")
-        for department in [departments[0]]:
+        count = 0
+        for department in departments:
             url = f'https://www.countdown.co.nz/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
                   "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
             for pageNumber in range(1, 300):
@@ -110,20 +110,28 @@ class Apis:
                     print("DONE")
                     break
                 for item in items:
-                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value:
+                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value or CountdownItemKeys.price.value not in item:
                         continue
+                    count += 1
+
                     countDownDataFile.write(
                         f'{item[CountdownItemKeys.name.value]},'
                         f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
-                        f'{department[CountdownItemKeys.name.value]}\n'
+                        f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])},'
+                        f'{item[CountdownItemKeys.brand.value]}\n'
                     )
+                    if count >= 1000:
+                        break
+            time.sleep(0.2)
+            if count >= 1000:
+                break
         countDownDataFile.close()
 
     def fetchNewworldItems(self):
         storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
         newWorldDataFile = open("newWorldData.csv", mode="w")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","hitsPerPage":"100","facetFilters":[' \
+                      '"sortFacetValuesBy":"alpha","hitsPerPage":"1000","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
@@ -138,10 +146,14 @@ class Apis:
             price = 1
             if storeId in item[NewWorldItemKeys.price.value].keys():
                 price = item[NewWorldItemKeys.price.value][storeId]
+            brand = "new world"
+            if NewWorldItemKeys.brand.value in item.keys():
+                brand = item[NewWorldItemKeys.brand.value]
             newWorldDataFile.write(
                 f'{item[NewWorldItemKeys.name.value]},'
                 f'{price},'
-                f'{str(item[NewWorldItemKeys.category.value]).replace("[", "").replace("]", "")}\n'
+                f'{finalCategories.concatCategories(item[NewWorldItemKeys.category.value][0])},'
+                f'{brand}\n'
             )
         newWorldDataFile.close()
 

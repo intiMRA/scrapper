@@ -1,8 +1,7 @@
 from Database import Database
 from enum import Enum
 from SuperMarketsApis import Apis
-from finalCategories import categories
-
+import finalCategories
 
 class SupportedStores(Enum):
     newWorld = "NewWorld"
@@ -22,51 +21,36 @@ def createTables():
 
 def fetchData():
     api = Apis()
-    api.fetchCountdownItems()
     api.fetchNewworldItems()
+    api.fetchCountdownItems()
 
 
 def clusterData():
-    cd = open("countDownData.csv")
-    nw = open("newWorldData.csv")
-
-    dictionary: {str: {str: {str: str}}} = {}
-    for i in nw:
-        ar = i.split(",")
-        category = ar[2].replace("'", "").replace("\n", "")
-        if category not in dictionary.keys():
-            dictionary[category] = {ar[0].replace("&", "").replace(" ", ""): {"nwPrice": ar[1], "name": ar[0]}}
-        else:
-            if ar[0].replace("&", "").replace(" ", "") in dictionary[category]:
-                dictionary[category][ar[0].replace("&", "").replace(" ", "")]["nwPrice"] = ar[1]
-            else:
-                dictionary[category][ar[0].replace("&", "").replace(" ", "")] = {"nwPrice": ar[1], "name": ar[0]}
-
+    cdf = open("countDownData.csv")
+    nwf = open("newWorldData.csv")
+    cd = cdf.readlines()
+    nw = nwf.readlines()
     for i in cd:
-        ar = i.split(",")
-        category = ar[2].replace("'", "").replace("\n", "")
-        if category not in dictionary.keys():
-            dictionary[category] = {ar[0].replace("&", "").replace(" ", ""): {"cdPrice": ar[1], "name": ar[0]}}
-        else:
-            if ar[0].replace("&", "").replace(" ", "") in dictionary[category]:
-                dictionary[category][ar[0].replace("&", "").replace(" ", "")]["cdPrice"] = ar[1]
-            else:
-                dictionary[category][ar[0].replace("&", "").replace(" ", "")] = {"cdPrice": ar[1], "name": ar[0]}
+        item = i.split(",")
+        for i2 in nw:
+            item2 = i2.split(",")
+            name1 = finalCategories.transformToKey(item[0])
+            name2 = finalCategories.transformToKey(item2[0])
+            cats1 = item[2].split("@")
+            cats2 = item2[2].split("@")
+            brand1 = finalCategories.transformToKey(item[3])
+            brand2 = finalCategories.transformToKey(item2[3])
+            v = False
+            if name1 == name2:
+                v = True
+            if brand1 == brand2:
+                v = True
 
-    for parentKey in categories.keys():
-        print(parentKey + "\n")
-        for key in categories[parentKey]:
-            key = key.replace("'", "").strip(" ")
-            if key in dictionary:
-                for subKeys in dictionary[key].keys():
-                    item = dictionary[key][subKeys]
-                    cdp = "-1"
-                    nwp = "-1"
-                    if "cdPrice" in item.keys():
-                        cdp = item["cdPrice"]
+            if v:
+                print("name: " + name1 + " , " + name2)
+                print("brand: " + brand1 + " , " + brand2)
+                print("-"*100)
 
-                    if "nwPrice" in item.keys():
-                        nwp = item["nwPrice"]
-                    print(item["name"] + ", " + "nw: " + nwp + "cd: " + cdp + "\n")
-        print("-"*100)
-Apis().fetchCountdownItems()
+    cdf.close()
+    nwf.close()
+clusterData()
