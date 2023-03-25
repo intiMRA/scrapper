@@ -1228,10 +1228,18 @@ nameToCategory = {
     "magazines-&-stationery": ['Other'],
 }
 
-
-def transformToKey(category: str) -> str:
-    return category.replace(" and ", " & ").replace(" ", "-").replace("'", "").replace('"', "").replace(",", "").replace(
-        "\n", "").replace("[", "").replace("]", "").lower()
+symbols = ['"', "'", ",", "\n", "[", "]", "."]
+def transformToKey(category: str, stopWords=None) -> str:
+    if stopWords is None:
+        stopWords = []
+    category = category.replace(" and ", " & ").replace(" ", "-").lower()
+    for symbol in symbols:
+        category = category.replace(symbol, "")
+    for word in stopWords:
+        sp = category.split("-")
+        if word in sp:
+            category = category.replace(word, "")
+    return category
 
 
 def concatCategories(key):
