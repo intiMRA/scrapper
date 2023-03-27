@@ -34,14 +34,18 @@ def clusterData():
     stopWords = stopWordsf.read()
     stopWordsf.close()
     stopWordsList = json.loads(stopWords)["nonKeyWords"]
+    stopDict = {}
+    for s in stopWordsList:
+        stopDict[s] = s
     cd = cdf.readlines()
     nw = nwf.readlines()
+    items = []
     for i in cd:
         item = i.split(",")
         for i2 in nw:
             item2 = i2.split(",")
-            name1 = finalCategories.transformToKey(item[0], stopWordsList)
-            name2 = finalCategories.transformToKey(item2[0], stopWordsList)
+            name1 = finalCategories.transformToKey(item[0], stopDict)
+            name2 = finalCategories.transformToKey(item2[0], stopDict)
             cats1 = item[2].split("@")
             cats2 = item2[2].split("@")
             brand1 = finalCategories.transformToKey(item[3])
@@ -51,9 +55,10 @@ def clusterData():
                 v = True
 
             if v and brand2 == brand1:
-                print("name: " + name1 + " , " + name2)
-                print("brand: " + brand1 + " , " + brand2)
-                print("-"*100)
+                s = "name: " + name1 + " , " + name2 + "brand: " + brand1 + " , " + brand2
+                items.append(s)
+    for i in items:
+        print(i)
 
     cdf.close()
     nwf.close()

@@ -1231,14 +1231,18 @@ nameToCategory = {
 symbols = ['"', "'", ",", "\n", "[", "]", "."]
 def transformToKey(category: str, stopWords=None) -> str:
     if stopWords is None:
-        stopWords = []
+        stopWords = {}
+    if category[-1] == 's':
+        category = category[:-1]
+
     category = category.replace(" and ", " & ").replace(" ", "-").lower()
     for symbol in symbols:
         category = category.replace(symbol, "")
-    for word in stopWords:
-        sp = category.split("-")
-        if word in sp:
-            category = category.replace(word, "")
+    sp = category.split("-")
+    for s in sp:
+        if s in stopWords.keys():
+            category = category.replace(s, "")
+
     return category
 
 

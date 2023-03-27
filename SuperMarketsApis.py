@@ -100,7 +100,7 @@ class Apis:
         for department in departments:
             url = f'https://www.countdown.co.nz/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
                   "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
-            for pageNumber in range(1, 300):
+            for pageNumber in range(1, 120):
                 response = requests.get(
                     f'{url}&page={pageNumber}',
                     headers=self._countDownHeaders)
@@ -120,18 +120,14 @@ class Apis:
                         f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])},'
                         f'{item[CountdownItemKeys.brand.value]}\n'
                     )
-                    if count >= 1000:
-                        break
-            time.sleep(0.2)
-            if count >= 1000:
-                break
+            time.sleep(0.01)
         countDownDataFile.close()
 
     def fetchNewworldItems(self):
         storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
         newWorldDataFile = open("newWorldData.csv", mode="w")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","hitsPerPage":"1000","facetFilters":[' \
+                      '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
