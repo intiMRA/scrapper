@@ -1229,9 +1229,13 @@ nameToCategory = {
 }
 
 symbols = ['"', "'", ",", "\n", "[", "]", "."]
-def transformToKey(category: str, stopWords=None) -> str:
-    if stopWords is None:
-        stopWords = {}
+def transformToKey(category: str) -> str:
+    category = category.replace(" and ", " & ").replace(" ", "-").lower()
+    for symbol in symbols:
+        category = category.replace(symbol, "")
+    return category
+
+def transformItem(category: str, stopWords: set) -> str:
     if category[-1] == 's':
         category = category[:-1]
 
@@ -1240,13 +1244,12 @@ def transformToKey(category: str, stopWords=None) -> str:
         category = category.replace(symbol, "")
     sp = category.split("-")
     for s in sp:
-        if s in stopWords.keys():
+        if s in stopWords:
             category = category.replace(s, "")
 
     return category
 
-
-def concatCategories(key):
+def concatCategories(key) -> str:
     prev = key
     key = transformToKey(key)
     if key not in nameToCategory.keys():

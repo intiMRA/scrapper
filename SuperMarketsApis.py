@@ -95,7 +95,9 @@ class Apis:
 
     def fetchCountdownItems(self):
         departments = self._fetchDepartments()
-        countDownDataFile = open("countDownData.csv", mode="w")
+        countDownDataFile = open("countDownData.json", mode="w")
+        countDownDataFile.write("{\n")
+        countdownDict = {}
         count = 0
         for department in departments:
             url = f'https://www.countdown.co.nz/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
@@ -113,19 +115,46 @@ class Apis:
                     if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value or CountdownItemKeys.price.value not in item:
                         continue
                     count += 1
+                    brand = f'{item[CountdownItemKeys.brand.value]}'
+                    if brand not in countdownDict:
+                        countdownDict[brand] = []
 
-                    countDownDataFile.write(
-                        f'{item[CountdownItemKeys.name.value]},'
-                        f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]},'
-                        f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])},'
-                        f'{item[CountdownItemKeys.brand.value]}\n'
-                    )
+                    name = f'{item[CountdownItemKeys.name.value]}'
+                    price = f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]}'
+                    category = f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])}'
+                    d = { f'{CountdownItemKeys.name.value}': name,
+                             f'{CountdownItemKeys.price.value}': price,
+                             'category': category}
+                    countdownDict[brand].append(d)
             time.sleep(0.01)
+
+        numBrands = len(countdownDict.keys()) - 1
+        for brandIndex, brand in enumerate(countdownDict.keys()):
+            countDownDataFile.write(f'    "{brand}": [\n')
+            numItems = len(countdownDict[brand]) - 1
+            for itemIndex, item in enumerate(countdownDict[brand]):
+                name = item[CountdownItemKeys.name.value]
+                price = item[CountdownItemKeys.price.value]
+                category = item["category"]
+                if numItems == itemIndex:
+                    countDownDataFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
+                else:
+                    countDownDataFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
+
+            if brandIndex == numBrands:
+                countDownDataFile.write("    ]\n")
+            else:
+                countDownDataFile.write("    ],\n")
+
+        countDownDataFile.write("}\n")
         countDownDataFile.close()
 
     def fetchNewworldItems(self):
         storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
-        newWorldDataFile = open("newWorldData.csv", mode="w")
+        newWorldDataFile = open("newWorldData.json", mode="w")
+        newWorldDataFile.write("{\n")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
                       '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                       f'"stores:{storeId}",' \
@@ -138,6 +167,7 @@ class Apis:
         jsonResponse = json.loads(response.text)
         items = jsonResponse[NewWorldKeys.products.value]
         storeId = storeId.replace("-", "")
+        newWorldDict = {}
         for item in items:
             price = 1
             if storeId in item[NewWorldItemKeys.price.value].keys():
@@ -145,12 +175,38 @@ class Apis:
             brand = "new world"
             if NewWorldItemKeys.brand.value in item.keys():
                 brand = item[NewWorldItemKeys.brand.value]
-            newWorldDataFile.write(
-                f'{item[NewWorldItemKeys.name.value]},'
-                f'{price},'
-                f'{finalCategories.concatCategories(item[NewWorldItemKeys.category.value][0])},'
-                f'{brand}\n'
-            )
+            if brand not in newWorldDict:
+                newWorldDict[brand] = []
+
+            name = f'{item[NewWorldItemKeys.name.value]}'
+            price = f'{price}'
+            category = f'{finalCategories.concatCategories(item[NewWorldItemKeys.category.value][0])}'
+            d = {f'{CountdownItemKeys.name.value}': name,
+                 f'{CountdownItemKeys.price.value}': price,
+                 'category': category}
+            newWorldDict[brand].append(d)
+
+        numBrands = len(newWorldDict.keys()) - 1
+        for brandIndex, brand in enumerate(newWorldDict.keys()):
+            newWorldDataFile.write(f'    "{brand}": [\n')
+            numItems = len(newWorldDict[brand]) - 1
+            for itemIndex, item in enumerate(newWorldDict[brand]):
+                name = item[CountdownItemKeys.name.value]
+                price = item[CountdownItemKeys.price.value]
+                category = item["category"]
+                if numItems == itemIndex:
+                    newWorldDataFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
+                else:
+                    newWorldDataFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
+
+            if brandIndex == numBrands:
+                newWorldDataFile.write("    ]\n")
+            else:
+                newWorldDataFile.write("    ],\n")
+
+        newWorldDataFile.write("}\n")
         newWorldDataFile.close()
 
     def _getNewWorldToken(self) -> str:

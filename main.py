@@ -28,38 +28,45 @@ def fetchData():
 
 
 def clusterData():
-    cdf = open("countDownData.csv")
-    nwf = open("newWorldData.csv")
-    stopWordsf = open("stopWords.json")
-    stopWords = stopWordsf.read()
-    stopWordsf.close()
-    stopWordsList = json.loads(stopWords)["nonKeyWords"]
-    stopDict = {}
-    for s in stopWordsList:
-        stopDict[s] = s
-    cd = cdf.readlines()
-    nw = nwf.readlines()
-    items = []
-    for i in cd:
-        item = i.split(",")
-        for i2 in nw:
-            item2 = i2.split(",")
-            name1 = finalCategories.transformToKey(item[0], stopDict)
-            name2 = finalCategories.transformToKey(item2[0], stopDict)
-            cats1 = item[2].split("@")
-            cats2 = item2[2].split("@")
-            brand1 = finalCategories.transformToKey(item[3])
-            brand2 = finalCategories.transformToKey(item2[3])
-            v = False
-            if name1 == name2 or name2 in name1 or name1 in name2:
-                v = True
+    countdownFile = open("countDownData.json")
+    newWorldFile = open("newWorldData.json")
 
-            if v and brand2 == brand1:
-                s = "name: " + name1 + " , " + name2 + "brand: " + brand1 + " , " + brand2
-                items.append(s)
-    for i in items:
-        print(i)
+    stopWordsFile = open("stopWords.json")
+    stopWordsString = stopWordsFile.read()
+    stopWordsFile.close()
+    stopWordsList = json.loads(stopWordsString)["nonKeyWords"]
+    stopSet = set(stopWordsList)
 
-    cdf.close()
-    nwf.close()
+    coutdownString = countdownFile.read()
+    newWorldString = newWorldFile.read()
+
+    countdownDict = json.loads(coutdownString)
+    newWorldDict = json.loads(newWorldString)
+    nwK = {}
+    count = 0
+    for key in newWorldDict.keys():
+        nwK[finalCategories.transformToKey(key)] = key
+    items = {}
+    for ck in countdownDict.keys():
+        ckm = finalCategories.transformToKey(ck)
+        if ckm in nwK:
+            for coutDownItem in countdownDict[ck]:
+                name1 = finalCategories.transformItem(coutDownItem["name"], stopSet)
+                items[name1] = {"name": [coutDownItem["name"]], "nwp": "0", "cdp": coutDownItem["price"], "category": coutDownItem["category"]}
+                for newWorldItem in newWorldDict[nwK[ckm]]:
+                    name2 = finalCategories.transformItem(newWorldItem["name"], stopSet)
+                    if name1 in name2 or name2 in name1 or name2 == name1:
+                        items[name1]["nwp"] = newWorldItem["price"]
+                        items[name1]["name"].append(newWorldItem["name"])
+                    else:
+                        items[name2] = {"name": [newWorldItem["name"]], "nwp": newWorldItem["price"], "cdp": "0",
+                                        "category": newWorldItem["category"]}
+    for item in items.values():
+        print(item["name"])
+        print(item["category"])
+        print("-"*100)
+
+
+    countdownFile.close()
+    newWorldFile.close()
 clusterData()
