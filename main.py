@@ -96,4 +96,4 @@ def clusterData():
 
     countdownFile.close()
     newWorldFile.close()
-clusterData()
+Apis().fetchPackNSave()

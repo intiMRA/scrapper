@@ -6,10 +6,14 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 import finalCategories
+import typing
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
+class SuperMarketAbbreviation(Enum):
+    newWorld = "MNW"
+    packNSave = "PNS"
 
 class CountdownKeys(Enum):
     products = "products"
@@ -17,7 +21,7 @@ class CountdownKeys(Enum):
     dasFacets = "dasFacets"
 
 
-class NewWorldKeys(Enum):
+class FoodStuffsKeys(Enum):
     products = "hits"
     storesAvailable = "onPromotion"
     accessToken = "accessToken"
@@ -26,7 +30,7 @@ class NewWorldKeys(Enum):
     refresh_token = "refresh_token"
 
 
-class NewWorldItemKeys(Enum):
+class FoodStuffsItemKeys(Enum):
     size = "weightDisplayName"
     name = "DisplayName"
     price = "prices"
@@ -123,8 +127,8 @@ class Apis:
                     price = f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]}'
                     category = f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])}'
                     d = { f'{CountdownItemKeys.name.value}': name,
-                             f'{CountdownItemKeys.price.value}': price,
-                             'category': category}
+                          f'{CountdownItemKeys.price.value}': price,
+                          f'{CountdownItemKeys.category.value}': category}
                     countdownDict[brand].append(d)
             time.sleep(0.01)
 
@@ -135,7 +139,7 @@ class Apis:
             for itemIndex, item in enumerate(countdownDict[brand]):
                 name = item[CountdownItemKeys.name.value]
                 price = item[CountdownItemKeys.price.value]
-                category = item["category"]
+                category = item[CountdownItemKeys.category.value]
                 if numItems == itemIndex:
                     countDownDataFile.write(
                         '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
@@ -151,65 +155,83 @@ class Apis:
         countDownDataFile.write("}\n")
         countDownDataFile.close()
 
+    def _writeFoodStuffsResponse(self, jsonResponse: {str: typing.Any}, fileName: str, storeId: str):
+        outputFile = open(fileName, mode="w")
+        outputFile.write("{\n")
+        items = jsonResponse[FoodStuffsKeys.products.value]
+        storeId = storeId.replace("-", "")
+        itemsDict = {}
+        for item in items:
+            price = 1
+            if storeId in item[FoodStuffsItemKeys.price.value].keys():
+                price = item[FoodStuffsItemKeys.price.value][storeId]
+            brand = "new world"
+            if FoodStuffsItemKeys.brand.value in item.keys():
+                brand = item[FoodStuffsItemKeys.brand.value]
+            if brand not in itemsDict:
+                itemsDict[brand] = []
+
+            name = f'{item[FoodStuffsItemKeys.name.value]}'
+            price = f'{price}'
+            category = f'{finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])}'
+            d = {f'{FoodStuffsItemKeys.name.value}': name,
+                 f'{FoodStuffsItemKeys.price.value}': price,
+                 f'{CountdownItemKeys.category.value}': category}
+            itemsDict[brand].append(d)
+
+        numBrands = len(itemsDict.keys()) - 1
+        for brandIndex, brand in enumerate(itemsDict.keys()):
+            outputFile.write(f'    "{brand}": [\n')
+            numItems = len(itemsDict[brand]) - 1
+            for itemIndex, item in enumerate(itemsDict[brand]):
+                name = item[FoodStuffsItemKeys.name.value]
+                price = item[FoodStuffsItemKeys.price.value]
+                category = item[CountdownItemKeys.category.value]
+                if numItems == itemIndex:
+                    outputFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
+                else:
+                    outputFile.write(
+                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
+
+            if brandIndex == numBrands:
+                outputFile.write("    ]\n")
+            else:
+                outputFile.write("    ],\n")
+
+        outputFile.write("}\n")
+        outputFile.close()
+
     def fetchNewworldItems(self):
         storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
-        newWorldDataFile = open("newWorldData.json", mode="w")
-        newWorldDataFile.write("{\n")
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
                       '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
-        url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/product/search/MNW?sortOrder=popularity'
+        url = f'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/product/search/{SuperMarketAbbreviation.newWorld.value}?sortOrder=popularity'
         headers = self._newWorldHeaders
-        headers["Authorization"] = self._getNewWorldToken()
+        headers["Authorization"] = self._getToken(superMarketType=SuperMarketAbbreviation.newWorld)
         response = requests.post(url, headers=self._newWorldHeaders, data=requestBody)
         jsonResponse = json.loads(response.text)
-        items = jsonResponse[NewWorldKeys.products.value]
-        storeId = storeId.replace("-", "")
-        newWorldDict = {}
-        for item in items:
-            price = 1
-            if storeId in item[NewWorldItemKeys.price.value].keys():
-                price = item[NewWorldItemKeys.price.value][storeId]
-            brand = "new world"
-            if NewWorldItemKeys.brand.value in item.keys():
-                brand = item[NewWorldItemKeys.brand.value]
-            if brand not in newWorldDict:
-                newWorldDict[brand] = []
+        self._writeFoodStuffsResponse(jsonResponse, "newWorldData.json", storeId)
 
-            name = f'{item[NewWorldItemKeys.name.value]}'
-            price = f'{price}'
-            category = f'{finalCategories.concatCategories(item[NewWorldItemKeys.category.value][0])}'
-            d = {f'{CountdownItemKeys.name.value}': name,
-                 f'{CountdownItemKeys.price.value}': price,
-                 'category': category}
-            newWorldDict[brand].append(d)
+    def fetchPackNSave(self):
+        storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
+        requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
+                      '"sortFacetValuesBy":"alpha","maxValuesPerFacet":"10000","hitsPerPage":"10000","facetFilters":[' \
+                      f'"stores:{storeId}",' \
+                      f'["onPromotion:{storeId}"],"tobacco:false"]' \
+                      '}'
+        url = f'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/product/search/{SuperMarketAbbreviation.packNSave.value}?sortOrder=popularity'
+        headers = self._newWorldHeaders
+        headers["Authorization"] = self._getToken(superMarketType=SuperMarketAbbreviation.packNSave)
+        response = requests.post(url, headers=self._newWorldHeaders, data=requestBody)
+        print(response.text)
+        jsonResponse = json.loads(response.text)
+        self._writeFoodStuffsResponse(jsonResponse, "packNSaveData.json", storeId)
 
-        numBrands = len(newWorldDict.keys()) - 1
-        for brandIndex, brand in enumerate(newWorldDict.keys()):
-            newWorldDataFile.write(f'    "{brand}": [\n')
-            numItems = len(newWorldDict[brand]) - 1
-            for itemIndex, item in enumerate(newWorldDict[brand]):
-                name = item[CountdownItemKeys.name.value]
-                price = item[CountdownItemKeys.price.value]
-                category = item["category"]
-                if numItems == itemIndex:
-                    newWorldDataFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
-                else:
-                    newWorldDataFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
-
-            if brandIndex == numBrands:
-                newWorldDataFile.write("    ]\n")
-            else:
-                newWorldDataFile.write("    ],\n")
-
-        newWorldDataFile.write("}\n")
-        newWorldDataFile.close()
-
-    def _getNewWorldToken(self) -> str:
+    def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         try:
             refreshTokenFile = open("refreshToken.txt", mode="r")
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/users/login/refreshtoken'
@@ -218,8 +240,8 @@ class Apis:
             body = "{" + body + "}"
             response = requests.post(url, headers=self._newWorldHeaders, data=body)
             responseJson = json.loads(response.text)
-            bearerToken = responseJson[NewWorldKeys.accessToken.value]
-            newRefreshToken = responseJson[NewWorldKeys.refreshToken.value]
+            bearerToken = responseJson[FoodStuffsKeys.accessToken.value]
+            newRefreshToken = responseJson[FoodStuffsKeys.refreshToken.value]
             refreshTokenFile.close()
             refreshTokenFile = open("refreshToken.txt", mode="w")
             refreshTokenFile.write(newRefreshToken)
@@ -229,13 +251,14 @@ class Apis:
             # log in
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/user/login'
             body = '{' + \
-                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"MNW"' + \
+                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"{superMarketType.value}"' + \
                    '}'
             response = requests.post(url, headers=self._newWorldHeaders, data=body)
             responseJson = json.loads(response.text)
-            bearerToken = responseJson[NewWorldKeys.access_token.value]
-            newRefreshToken = responseJson[NewWorldKeys.refresh_token.value]
+            bearerToken = responseJson[FoodStuffsKeys.access_token.value]
+            newRefreshToken = responseJson[FoodStuffsKeys.refresh_token.value]
             refreshTokenFile = open("refreshToken.txt", mode="w")
             refreshTokenFile.write(newRefreshToken)
             refreshTokenFile.close()
             return f'Bearer {bearerToken}'
+
