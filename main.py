@@ -3,6 +3,7 @@ import json
 from Database import Database
 from enum import Enum
 from SuperMarketsApis import Apis
+from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 
 class SupportedStores(Enum):
@@ -215,12 +216,13 @@ def clusterData():
                     items[pakNSaveName][ConcatcKeys.packNSaveItems.value] = [pakNSaveItem["name"]]
                     items[pakNSaveName][ConcatcKeys.packNSavePrice.value] = [pakNSaveItem["price"]]
                     items[pakNSaveName][ConcatcKeys.category.value] = pakNSaveItem["category"]
-
+    count = 1
     for item in items.values():
         # :
         #     print(f"CountDown: {item[ConcatcKeys.countdownItems.value]}")
 
         if item[ConcatcKeys.packNSaveItems.value] and item[ConcatcKeys.newWorldItems.value] and item[ConcatcKeys.countdownItems.value]:
+            print(count)
             print(f"NewWorld: {item[ConcatcKeys.newWorldItems.value]}")
             print(f"NewWorld: {item[ConcatcKeys.newWorldPrice.value]}")
             print(f"PackNSave: {item[ConcatcKeys.packNSaveItems.value]}")
@@ -229,6 +231,7 @@ def clusterData():
             print(f"CountDown: {item[ConcatcKeys.countdownPrice.value]}")
             print(item[ConcatcKeys.category.value])
             print("-"*100)
+            count += 1
 
 
     countdownFile.close()

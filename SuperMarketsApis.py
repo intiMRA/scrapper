@@ -11,9 +11,25 @@ import typing
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
+
 class SuperMarketAbbreviation(Enum):
     newWorld = "MNW"
     packNSave = "PNS"
+
+
+class FileNames(Enum):
+    newWorldFile = "newWorldData.json"
+    packNSaveFile = "packNSaveData.json"
+    countdownFile = "countdown.json"
+
+
+class OutputJsonKeys(Enum):
+    name = "name"
+    price = "price"
+    category = "category"
+    photoUrl = "photoUrl"
+    brand = "brand"
+
 
 class CountdownKeys(Enum):
     products = "products"
@@ -28,6 +44,8 @@ class FoodStuffsKeys(Enum):
     access_token = "access_token"
     refreshToken = "refreshToken"
     refresh_token = "refresh_token"
+    facets = "facets"
+    category1NI = "category1NI"
 
 
 class FoodStuffsItemKeys(Enum):
@@ -36,6 +54,7 @@ class FoodStuffsItemKeys(Enum):
     price = "prices"
     brand = "brand"
     category = "category1"
+    objectID = "objectID"
 
 
 class CountdownItemIgnoreKeys(Enum):
@@ -50,6 +69,9 @@ class CountdownItemKeys(Enum):
     volumeSize = "volumeSize"
     brand = "brand"
     type = "type"
+    images = "images"
+    iconSmall = "small"
+    iconLarge = "large"
     category = "category"
 
 
@@ -70,7 +92,7 @@ class Apis:
 
     _token = ''
 
-    _newWorldHeaders = {
+    _foodStuffsHeaders = {
         'Host': 'api-prod.prod.fsniwaikato.kiwi',
         'Connection': 'keep-alive',
         'Accept': 'application/json, text/plain, */*',
@@ -101,10 +123,11 @@ class Apis:
         departments = self._fetchDepartments()
         countDownDataFile = open("countDownData.json", mode="w")
         countDownDataFile.write("{\n")
-        countdownDict = {}
+        itemDict = {}
         count = 0
         for department in departments:
-            url = f'https://www.countdown.co.nz/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
+            url = f'https://www.countdown.co.nz' \
+                  f'/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
                   "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
             for pageNumber in range(1, 120):
                 response = requests.get(
@@ -113,123 +136,74 @@ class Apis:
                 res = json.loads(response.text)
                 items = res[CountdownKeys.products.value][CountdownKeys.items.value]
                 if len(items) == 0:
-                    print("DONE")
+                    count += 1
+                    print(f'{department["name"]}, {count} out of {len(departments)} DONE')
                     break
                 for item in items:
-                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value or CountdownItemKeys.price.value not in item:
+                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value \
+                            or CountdownItemKeys.price.value not in item:
                         continue
-                    count += 1
-                    brand = f'{item[CountdownItemKeys.brand.value]}'
-                    if brand not in countdownDict:
-                        countdownDict[brand] = []
+                    brand = item[CountdownItemKeys.brand.value]
+                    if brand not in itemDict:
+                        itemDict[brand] = []
 
-                    name = f'{item[CountdownItemKeys.name.value]}'
-                    price = f'{item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]}'
-                    category = f'{finalCategories.concatCategories(department[CountdownItemKeys.name.value])}'
-                    d = { f'{CountdownItemKeys.name.value}': name,
-                          f'{CountdownItemKeys.price.value}': price,
-                          f'{CountdownItemKeys.category.value}': category}
-                    countdownDict[brand].append(d)
-            time.sleep(0.01)
+                    name = item[CountdownItemKeys.name.value]
+                    price = item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]
+                    category = finalCategories.concatCategories(department[CountdownItemKeys.name.value])
+                    photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconSmall.value]
+                    parsedItem = {f'{OutputJsonKeys.name.value}': name,
+                                  f'{OutputJsonKeys.price.value}': price,
+                                  f'{OutputJsonKeys.category.value}': category,
+                                  f'{OutputJsonKeys.photoUrl.value}': photoUrl}
+                    itemDict[brand].append(parsedItem)
+            # time.sleep(0.01)
 
-        numBrands = len(countdownDict.keys()) - 1
-        for brandIndex, brand in enumerate(countdownDict.keys()):
-            countDownDataFile.write(f'    "{brand}": [\n')
-            numItems = len(countdownDict[brand]) - 1
-            for itemIndex, item in enumerate(countdownDict[brand]):
-                name = item[CountdownItemKeys.name.value]
-                price = item[CountdownItemKeys.price.value]
-                category = item[CountdownItemKeys.category.value]
-                if numItems == itemIndex:
-                    countDownDataFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
-                else:
-                    countDownDataFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
-
-            if brandIndex == numBrands:
-                countDownDataFile.write("    ]\n")
-            else:
-                countDownDataFile.write("    ],\n")
-
+        self._writeItem(itemDict, countDownDataFile)
         countDownDataFile.write("}\n")
         countDownDataFile.close()
 
-    def _writeFoodStuffsResponse(self, jsonResponse: {str: typing.Any}, fileName: str, storeId: str):
+    def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId) -> [str]:
+        requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
+                      '"sortFacetValuesBy":"alpha","hitsPerPage":"1","facetFilters":[' \
+                      f'"stores:{storeId}",' \
+                      f'["onPromotion:{storeId}"],"tobacco:false"]' \
+                      '}'
+        url = f'https://api-prod.prod.fsniwaikato.kiwi' \
+              f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
+        headers = self._foodStuffsHeaders
+        headers["Authorization"] = self._getToken(superMarketType=superMarket)
+        response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+        dictionary = json.loads(response.text)
+        return dictionary[FoodStuffsKeys.facets.value][FoodStuffsKeys.category1NI.value].keys()
+
+    def fetchFoodStuffItems(self, superMarket: SuperMarketAbbreviation):
+        storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
+        fileName = FileNames.newWorldFile.value
+        if superMarket == SuperMarketAbbreviation.packNSave:
+            storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
+            fileName = FileNames.packNSaveFile.value
+        facets = self._getFoodStuffsFacets(superMarket, storeId)
         outputFile = open(fileName, mode="w")
         outputFile.write("{\n")
-        items = jsonResponse[FoodStuffsKeys.products.value]
-        storeId = storeId.replace("-", "")
         itemsDict = {}
-        for item in items:
-            price = 1
-            if storeId in item[FoodStuffsItemKeys.price.value].keys():
-                price = item[FoodStuffsItemKeys.price.value][storeId]
-            brand = "new world"
-            if FoodStuffsItemKeys.brand.value in item.keys():
-                brand = item[FoodStuffsItemKeys.brand.value]
-            if brand not in itemsDict:
-                itemsDict[brand] = []
 
-            name = f'{item[FoodStuffsItemKeys.name.value]}'
-            price = f'{price}'
-            category = f'{finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])}'
-            d = {f'{FoodStuffsItemKeys.name.value}': name,
-                 f'{FoodStuffsItemKeys.price.value}': price,
-                 f'{CountdownItemKeys.category.value}': category}
-            itemsDict[brand].append(d)
-
-        numBrands = len(itemsDict.keys()) - 1
-        for brandIndex, brand in enumerate(itemsDict.keys()):
-            outputFile.write(f'    "{brand}": [\n')
-            numItems = len(itemsDict[brand]) - 1
-            for itemIndex, item in enumerate(itemsDict[brand]):
-                name = item[FoodStuffsItemKeys.name.value]
-                price = item[FoodStuffsItemKeys.price.value]
-                category = item[CountdownItemKeys.category.value]
-                if numItems == itemIndex:
-                    outputFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '}\n')
-                else:
-                    outputFile.write(
-                        '        { ' + f'"name": "{name}", ' + f'"price": "{price}", ' + f'"category": "{category}"' + '},\n')
-
-            if brandIndex == numBrands:
-                outputFile.write("    ]\n")
-            else:
-                outputFile.write("    ],\n")
-
+        for facet in facets:
+            requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
+                          '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
+                          f'"stores:{storeId}",' \
+                          f'["{FoodStuffsKeys.category1NI.value}:{facet}"],' \
+                          f'["onPromotion:{storeId}"],"tobacco:false"]' \
+                          '}'
+            url = f'https://api-prod.prod.fsniwaikato.kiwi' \
+                  f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
+            headers = self._foodStuffsHeaders
+            headers["Authorization"] = self._getToken(superMarketType=superMarket)
+            response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+            jsonResponse = json.loads(response.text)
+            self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
+        self._writeItem(itemsDict, outputFile)
         outputFile.write("}\n")
         outputFile.close()
-
-    def fetchNewworldItems(self):
-        storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
-        requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
-                      f'"stores:{storeId}",' \
-                      f'["onPromotion:{storeId}"],"tobacco:false"]' \
-                      '}'
-        url = f'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/product/search/{SuperMarketAbbreviation.newWorld.value}?sortOrder=popularity'
-        headers = self._newWorldHeaders
-        headers["Authorization"] = self._getToken(superMarketType=SuperMarketAbbreviation.newWorld)
-        response = requests.post(url, headers=self._newWorldHeaders, data=requestBody)
-        jsonResponse = json.loads(response.text)
-        self._writeFoodStuffsResponse(jsonResponse, "newWorldData.json", storeId)
-
-    def fetchPackNSave(self):
-        storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
-        requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","exhaustiveNbHits":"false","maxValuesPerFacet":"10000","hitsPerPage":"10000","facetFilters":[' \
-                      f'"stores:{storeId}",' \
-                      f'["onPromotion:{storeId}"],"tobacco:false"]' \
-                      '}'
-        url = f'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/product/search/{SuperMarketAbbreviation.packNSave.value}?sortOrder=popularity'
-        headers = self._newWorldHeaders
-        headers["Authorization"] = self._getToken(superMarketType=SuperMarketAbbreviation.packNSave)
-        response = requests.post(url, headers=self._newWorldHeaders, data=requestBody)
-        print(response.text)
-        jsonResponse = json.loads(response.text)
-        self._writeFoodStuffsResponse(jsonResponse, "packNSaveData.json", storeId)
 
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         try:
@@ -238,7 +212,7 @@ class Apis:
             refreshToken = refreshTokenFile.readline(1)
             body = f'"refreshToken":"{refreshToken}"'
             body = "{" + body + "}"
-            response = requests.post(url, headers=self._newWorldHeaders, data=body)
+            response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
             responseJson = json.loads(response.text)
             bearerToken = responseJson[FoodStuffsKeys.accessToken.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refreshToken.value]
@@ -251,9 +225,11 @@ class Apis:
             # log in
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/user/login'
             body = '{' + \
-                   f'"email":"{os.getenv("EMAIL")}","password":"{os.getenv("EMAIL_PASSWORD")}","banner":"{superMarketType.value}"' + \
+                   f'"email":"{os.getenv("EMAIL")}",' \
+                   f'"password":"{os.getenv("EMAIL_PASSWORD")}",' \
+                   f'"banner":"{superMarketType.value}"' + \
                    '}'
-            response = requests.post(url, headers=self._newWorldHeaders, data=body)
+            response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
             responseJson = json.loads(response.text)
             bearerToken = responseJson[FoodStuffsKeys.access_token.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refresh_token.value]
@@ -262,3 +238,60 @@ class Apis:
             refreshTokenFile.close()
             return f'Bearer {bearerToken}'
 
+    def _writeItem(self, dictionary, file):
+        numBrands = len(dictionary.keys()) - 1
+        for brandIndex, brand in enumerate(dictionary.keys()):
+            file.write(f'    "{brand}": [\n')
+            numItems = len(dictionary[brand]) - 1
+            for itemIndex, item in enumerate(dictionary[brand]):
+                name = item[OutputJsonKeys.name.value]
+                price = item[CountdownItemKeys.price.value]
+                category = item[OutputJsonKeys.category.value]
+                photoUrl = item[OutputJsonKeys.photoUrl.value]
+                if numItems == itemIndex:
+                    file.write(
+                        '        { ' +
+                        f'"{OutputJsonKeys.name.value}": "{name}", ' +
+                        f'"{CountdownItemKeys.price.value}": "{price}", ' +
+                        f'"{OutputJsonKeys.category.value}": "{category}",' +
+                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}"' +
+                        '}\n')
+                else:
+                    file.write(
+                        '        { ' +
+                        f'"{OutputJsonKeys.name.value}": "{name}", '
+                        + f'"{CountdownItemKeys.price.value}": "{price}", ' +
+                        f'"{OutputJsonKeys.category.value}": "{category}",' +
+                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}"' +
+                        '},\n')
+
+            if brandIndex == numBrands:
+                file.write("    ]\n")
+            else:
+                file.write("    ],\n")
+
+    def _writeFoodStuffsResponse(self, itemsDict, jsonResponse: {str: typing.Any}, storeId: str):
+        items = jsonResponse[FoodStuffsKeys.products.value]
+        storeId = storeId.replace("-", "")
+        for item in items:
+            price = 1
+            if storeId in item[FoodStuffsItemKeys.price.value].keys():
+                price = item[FoodStuffsItemKeys.price.value][storeId]
+            brand = "new world"
+            if FoodStuffsItemKeys.brand.value in item.keys():
+                brand = item[FoodStuffsItemKeys.brand.value]
+            if brand not in itemsDict:
+                itemsDict[brand] = []
+
+            name = item[FoodStuffsItemKeys.name.value]
+            price = price
+            category = finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])
+            objectId = item[FoodStuffsItemKeys.objectID.value].split("-")[0]
+            photoUrl = f'https://a.fsimg.co.nz/product/retail/fan/image/200x200/{objectId}.png'
+            parsedItem = {
+                f'{OutputJsonKeys.name.value}': name,
+                f'{OutputJsonKeys.price.value}': price,
+                f'{OutputJsonKeys.category.value}': category,
+                f'{OutputJsonKeys.photoUrl.value}': photoUrl
+            }
+            itemsDict[brand].append(parsedItem)
