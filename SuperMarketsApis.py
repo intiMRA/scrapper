@@ -219,7 +219,7 @@ class Apis:
     def fetchPackNSave(self):
         storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
-                      '"sortFacetValuesBy":"alpha","maxValuesPerFacet":"10000","hitsPerPage":"10000","facetFilters":[' \
+                      '"sortFacetValuesBy":"alpha","exhaustiveNbHits":"false","maxValuesPerFacet":"10000","hitsPerPage":"10000","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
