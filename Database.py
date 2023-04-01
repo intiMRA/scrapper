@@ -21,6 +21,9 @@ class Database:
         paramsString = paramsString[:-1]
         self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {tableName} ({paramsString})")
 
+    def dropTable(self, tableName: str):
+        self._cursor.execute(f"DROP TABLES {tableName}")
+
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
         for table in self._cursor:

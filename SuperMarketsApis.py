@@ -1,5 +1,4 @@
 import requests
-import time
 import json
 from enum import Enum
 from dotenv import load_dotenv
@@ -127,7 +126,7 @@ class Apis:
         count = 0
         for department in departments:
             url = f'https://www.countdown.co.nz' \
-                  f'/api/v1/products?dasFilter=Department%3B%3B{department["category"]}%3Bfalse&dasFilter' \
+                  f'/api/v1/products?dasFilter=Department%3B%3B{department[CountdownItemKeys.category.value]}%3Bfalse&dasFilter' \
                   "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
             for pageNumber in range(1, 120):
                 response = requests.get(
@@ -188,7 +187,8 @@ class Apis:
         itemsDict = {}
 
         for facet in facets:
-            requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
+            requestBody = '{' + f'"query":"","facets":["{FoodStuffsKeys.category1NI.value}",' \
+                                f'"onPromotion"],"attributesToHighlight":[],' \
                           '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                           f'"stores:{storeId}",' \
                           f'["{FoodStuffsKeys.category1NI.value}:{facet}"],' \

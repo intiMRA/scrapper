@@ -1231,11 +1231,14 @@ nameToCategory = {
 }
 
 symbols = ['"', "'", ",", "\n", "[", "]", "."]
+
+
 def transformToKey(category: str) -> str:
     category = category.replace(" and ", " & ").replace(" ", "-").lower()
     for symbol in symbols:
         category = category.replace(symbol, "")
     return category
+
 
 def transformItem(category: str, stopWords: set) -> str:
     if category[-1] == 's':
@@ -1250,6 +1253,7 @@ def transformItem(category: str, stopWords: set) -> str:
             category = category.replace(s, "")
 
     return category
+
 
 def concatCategories(key) -> str:
     prev = key
