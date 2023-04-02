@@ -11,8 +11,12 @@ class Database:
     _connection = None
     _cursor = None
 
-    def insertRow(self):
-        return
+    def insertItems(self, tableName: str, values: [str]):
+        sql = f"INSERT INTO {tableName} (ID, itemName, itemPrice, itemUrls, itemCategory, itemBrand) VALUES ({'%s,'*len(values[0])}"
+        sql = sql[:-1] + ")"
+        self._cursor.executemany(sql, values)
+
+        self._connection.commit()
 
     def createTable(self, tableName: str, tableParameters: [str]):
         paramsString: str = ""
@@ -22,15 +26,16 @@ class Database:
         self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {tableName} ({paramsString})")
 
     def dropTable(self, tableName: str):
-        self._cursor.execute(f"DROP TABLES {tableName}")
+        self._cursor.execute(f"DROP TABLE {tableName}")
 
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
         for table in self._cursor:
             print(table)
 
-    def fetchItems(self):
-        return
+    def fetchItems(self, tableName):
+        self._cursor.execute(f"SELECT * FROM {tableName}")
+        return self._cursor.fetchall()
 
     def testConnection(self):
         self.startConnection()
