@@ -100,6 +100,9 @@ def writeItemsToDB(items):
     parameters = []
     for newWorldItemKey in newWorld.keys():
         id = str(newWorldItemKey)
+        if newWorldItemKey in countDown.keys():
+            print(newWorld[newWorldItemKey])
+            print(countDown[newWorldItemKey])
         values = newWorld[newWorldItemKey]
         name = ''
         for names in values["name"]:
@@ -125,7 +128,7 @@ def writeItemsToDB(items):
     db.insertItems(SupportedStores.newWorld.value, parameters)
     itms = db.fetchItems(SupportedStores.newWorld.value)
     for item in itms:
-        print(item[1])
+        print(item[1], item[2], item[3], item[4], item[5])
     db.closeConnection()
 
 def writeCountDownItem(items, dictionary, itemName, itemExists, brand):
@@ -252,11 +255,11 @@ def clusterData():
             if ckm in newWorldKeyMap:
                 for newWorldItem in newWorldDict[newWorldKeyMap[ckm]]:
                     newWorldName = finalCategories.transformItem(newWorldItem["name"], stopSet)
-                    itemExists = newWorldName in countdownName or \
-                                 countdownName in newWorldName or \
-                                 countdownName == newWorldName or \
-                                 countdownName in items or \
-                                 newWorldName in items
+                    itemExists = (newWorldName in countdownName or
+                                 countdownName in newWorldName or
+                                 countdownName == newWorldName) and \
+                                 (countdownName in items or
+                                 newWorldName in items)
                     name = newWorldName
                     if itemExists:
                         name = countdownName
@@ -267,11 +270,11 @@ def clusterData():
             if ckm in packNSaveKeyMap:
                 for packNSaveItem in packNSaveDict[packNSaveKeyMap[ckm]]:
                     pakNSaveName = finalCategories.transformItem(packNSaveItem["name"], stopSet)
-                    itemExists = pakNSaveName in countdownName or \
-                                 countdownName in pakNSaveName or \
-                                 countdownName == pakNSaveName or \
-                                 countdownName in items or \
-                                 pakNSaveName in items
+                    itemExists = (pakNSaveName in countdownName or
+                                 countdownName in pakNSaveName or
+                                 countdownName == pakNSaveName) and \
+                                 (countdownName in items or
+                                 pakNSaveName in items)
                     name = pakNSaveName
                     if itemExists:
                         name = countdownName
@@ -287,11 +290,11 @@ def clusterData():
 
                 for packNSaveItem in packNSaveDict[packNSaveKeyMap[key]]:
                     pakNSaveName = finalCategories.transformItem(packNSaveItem["name"], stopSet)
-                    itemExists = newWorldName in pakNSaveName or \
-                                 pakNSaveName in newWorldName or \
-                                 pakNSaveName == newWorldName or \
-                                 pakNSaveName in items or \
-                                 newWorldName in items
+                    itemExists = (newWorldName in pakNSaveName or
+                                 pakNSaveName in newWorldName or
+                                 pakNSaveName == newWorldName) and \
+                                 (pakNSaveName in items or
+                                 newWorldName in items)
                     name = pakNSaveName
                     if itemExists:
                         name = newWorldName
