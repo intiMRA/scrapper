@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import finalCategories
 import typing
+import time
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -28,6 +29,7 @@ class OutputJsonKeys(Enum):
     category = "category"
     photoUrl = "photoUrl"
     brand = "brand"
+    size = "size"
 
 
 class CountdownKeys(Enum):
@@ -66,6 +68,9 @@ class CountdownItemKeys(Enum):
     size = "size"
     salePrice = "salePrice"
     volumeSize = "volumeSize"
+    cupMeasure = "cupMeasure"
+    packageType = "packageType"
+    unit = "unit"
     brand = "brand"
     type = "type"
     images = "images"
@@ -91,15 +96,7 @@ class Apis:
 
     _token = ''
 
-    _foodStuffsHeaders = {
-        'Host': 'api-prod.prod.fsniwaikato.kiwi',
-        'Connection': 'keep-alive',
-        'Accept': 'application/json, text/plain, */*',
-        'User-Agent': 'NewWorldApp/4.4.0 (iOS 16.3.1)',
-        'Content-Length': '325',
-        'Accept-Language': 'en-GB,en;q=0.9',
-        'Content-Type': 'application/json'
-    }
+    _foodStuffsHeaders = ''
 
     def _fetchDepartments(self) -> [{str: str}]:
         url = "https://www.countdown.co.nz/api/v1/products?target=specials"
@@ -150,10 +147,20 @@ class Apis:
                     price = item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]
                     category = finalCategories.concatCategories(department[CountdownItemKeys.name.value])
                     photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconSmall.value]
+                    size = item[CountdownItemKeys.size.value][CountdownItemKeys.volumeSize.value]
+                    if not size:
+                        size = item[CountdownItemKeys.size.value][CountdownItemKeys.packageType.value]
+
+                    if not item:
+                        size = item[CountdownItemKeys.size.value][CountdownItemKeys.cupMeasure.value]
+                    if not size:
+                        size = item[CountdownItemKeys.unit.value]
                     parsedItem = {f'{OutputJsonKeys.name.value}': name,
                                   f'{OutputJsonKeys.price.value}': price,
                                   f'{OutputJsonKeys.category.value}': category,
-                                  f'{OutputJsonKeys.photoUrl.value}': photoUrl}
+                                  f'{OutputJsonKeys.photoUrl.value}': photoUrl,
+                                  f'{OutputJsonKeys.size.value}': size,
+                                  }
                     itemDict[brand].append(parsedItem)
             # time.sleep(0.01)
 
@@ -162,6 +169,26 @@ class Apis:
         countDownDataFile.close()
 
     def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId) -> [str]:
+        if superMarket == SuperMarketAbbreviation.packNSave:
+            self._foodStuffsHeaders = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'PackNSaveApp/4.4.0 (iOS 16.3.1)',
+                'Content-Length': '325',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json'
+            }
+        else:
+            self._foodStuffsHeaders = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'NewWorldApp/4.4.0 (iOS 16.3.1)',
+                'Content-Length': '325',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json'
+            }
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
                       '"sortFacetValuesBy":"alpha","hitsPerPage":"1","facetFilters":[' \
                       f'"stores:{storeId}",' \
@@ -185,29 +212,30 @@ class Apis:
         outputFile = open(fileName, mode="w")
         outputFile.write("{\n")
         itemsDict = {}
+        headers = self._foodStuffsHeaders
 
         for facet in facets:
             requestBody = '{' + f'"query":"","facets":["{FoodStuffsKeys.category1NI.value}",' \
                                 f'"onPromotion"],"attributesToHighlight":[],' \
-                          '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
-                          f'"stores:{storeId}",' \
-                          f'["{FoodStuffsKeys.category1NI.value}:{facet}"],' \
-                          f'["onPromotion:{storeId}"],"tobacco:false"]' \
-                          '}'
+                                '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
+                                f'"stores:{storeId}",' \
+                                f'["{FoodStuffsKeys.category1NI.value}:{facet}"],' \
+                                f'["onPromotion:{storeId}"],"tobacco:false"]' \
+                                '}'
             url = f'https://api-prod.prod.fsniwaikato.kiwi' \
                   f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
-            headers = self._foodStuffsHeaders
-            headers["Authorization"] = self._getToken(superMarketType=superMarket)
+            headers["Authorization"] = self._token
             response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
+
         self._writeItem(itemsDict, outputFile)
         outputFile.write("}\n")
         outputFile.close()
-
+        time.sleep(0.01)
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         try:
-            refreshTokenFile = open("refreshToken.txt", mode="r")
+            refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="r")
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/users/login/refreshtoken'
             refreshToken = refreshTokenFile.readline(1)
             body = f'"refreshToken":"{refreshToken}"'
@@ -217,9 +245,10 @@ class Apis:
             bearerToken = responseJson[FoodStuffsKeys.accessToken.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refreshToken.value]
             refreshTokenFile.close()
-            refreshTokenFile = open("refreshToken.txt", mode="w")
+            refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="w")
             refreshTokenFile.write(newRefreshToken)
             refreshTokenFile.close()
+            self._token = f'Bearer {bearerToken}'
             return f'Bearer {bearerToken}'
         except:
             # log in
@@ -231,15 +260,18 @@ class Apis:
                    '}'
             response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
             responseJson = json.loads(response.text)
+            print(responseJson)
             bearerToken = responseJson[FoodStuffsKeys.access_token.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refresh_token.value]
-            refreshTokenFile = open("refreshToken.txt", mode="w")
+            refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="w")
             refreshTokenFile.write(newRefreshToken)
             refreshTokenFile.close()
+            self._token = f'Bearer {bearerToken}'
             return f'Bearer {bearerToken}'
 
     def _writeItem(self, dictionary, file):
         numBrands = len(dictionary.keys()) - 1
+        siz = []
         for brandIndex, brand in enumerate(dictionary.keys()):
             file.write(f'    "{brand}": [\n')
             numItems = len(dictionary[brand]) - 1
@@ -248,13 +280,17 @@ class Apis:
                 price = item[CountdownItemKeys.price.value]
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
+                size = self._parseSize(item[OutputJsonKeys.size.value])
+                if size not in siz:
+                    siz.append(size)
                 if numItems == itemIndex:
                     file.write(
                         '        { ' +
                         f'"{OutputJsonKeys.name.value}": "{name}", ' +
                         f'"{CountdownItemKeys.price.value}": "{price}", ' +
                         f'"{OutputJsonKeys.category.value}": "{category}",' +
-                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}"' +
+                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}",' +
+                        f'"{OutputJsonKeys.size.value}": "{size}"' +
                         '}\n')
                 else:
                     file.write(
@@ -262,15 +298,35 @@ class Apis:
                         f'"{OutputJsonKeys.name.value}": "{name}", '
                         + f'"{CountdownItemKeys.price.value}": "{price}", ' +
                         f'"{OutputJsonKeys.category.value}": "{category}",' +
-                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}"' +
+                        f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}",' +
+                        f'"{OutputJsonKeys.size.value}": "{size}"' +
                         '},\n')
 
             if brandIndex == numBrands:
                 file.write("    ]\n")
             else:
                 file.write("    ],\n")
+        for sz in siz:
+            print(sz)
+
+    def _parseSize(self, size: str) -> str:
+        cleanUpDict = {
+            "per ": "1 ",
+            "medium": "",
+            "small": "",
+            "large": "",
+            "tray": "",
+            "pk ": "pack ",
+            "ea ": "each "
+        }
+        size = size.lower()
+        for key in cleanUpDict:
+            size = size.replace(key, cleanUpDict[key])
+        return size
 
     def _writeFoodStuffsResponse(self, itemsDict, jsonResponse: {str: typing.Any}, storeId: str):
+        if FoodStuffsKeys.products.value not in jsonResponse:
+            print(jsonResponse)
         items = jsonResponse[FoodStuffsKeys.products.value]
         storeId = storeId.replace("-", "")
         for item in items:
@@ -288,10 +344,12 @@ class Apis:
             category = finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])
             objectId = item[FoodStuffsItemKeys.objectID.value].split("-")[0]
             photoUrl = f'https://a.fsimg.co.nz/product/retail/fan/image/200x200/{objectId}.png'
+            size = self._parseSize(item[FoodStuffsItemKeys.size.value])
             parsedItem = {
                 f'{OutputJsonKeys.name.value}': name,
                 f'{OutputJsonKeys.price.value}': price,
                 f'{OutputJsonKeys.category.value}': category,
-                f'{OutputJsonKeys.photoUrl.value}': photoUrl
+                f'{OutputJsonKeys.photoUrl.value}': photoUrl,
+                f'{OutputJsonKeys.size.value}': size
             }
             itemsDict[brand].append(parsedItem)

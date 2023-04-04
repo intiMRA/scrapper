@@ -1,3 +1,4 @@
+import re
 categoryToNames = {"International": [
     "International",
     "World Foods",
@@ -1230,29 +1231,39 @@ nameToCategory = {
     "magazines-&-stationery": ['Other'],
 }
 
-symbols = ['"', "'", ",", "\n", "[", "]", "."]
+symbols = ['"', "'", ",", "\n", "[", "]", ".", "-"]
 
 
 def transformToKey(category: str) -> str:
-    category = category.replace(" and ", " & ").replace(" ", "-").lower()
+    category = category.replace(" and ", " & ").lower()
     for symbol in symbols:
         category = category.replace(symbol, "")
-    return category
+    return " ".join(category.split())
 
 
 def transformItem(category: str, stopWords: set) -> str:
+    stopFrases = [
+    "abe's bagels",
+    "abes bagels",
+    "kit kat",
+    "kiwi blue"
+    ]
     if category[-1] == 's':
         category = category[:-1]
-
-    category = category.replace(" and ", " & ").replace(" ", "-").lower()
+    nums = re.findall(r'[0-9]+[aA-zZ%]*[ ]?', category)
+    for num in nums:
+        category = category.replace(num, "")
+    category = category.replace(" and ", " & ").lower()
     for symbol in symbols:
         category = category.replace(symbol, "")
-    sp = category.split("-")
+    for stopFrase in stopFrases:
+        category = category.replace(stopFrase, "")
+
+    sp = category.split(" ")
     for s in sp:
         if s in stopWords:
             category = category.replace(s, "")
-
-    return category
+    return " ".join(category.split())
 
 
 def concatCategories(key) -> str:
