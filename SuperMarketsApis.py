@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 import finalCategories
 import typing
-import time
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -232,7 +231,6 @@ class Apis:
         self._writeItem(itemsDict, outputFile)
         outputFile.write("}\n")
         outputFile.close()
-        time.sleep(0.01)
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         try:
             refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="r")
