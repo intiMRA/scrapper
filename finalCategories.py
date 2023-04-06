@@ -1238,7 +1238,7 @@ def transformToKey(category: str) -> str:
     category = category.replace(" and ", " & ").lower()
     for symbol in symbols:
         category = category.replace(symbol, "")
-    return " ".join(category.split())
+    return "-".join(category.split())
 
 
 def transformItem(category: str, stopWords: set) -> str:

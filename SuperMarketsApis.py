@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import finalCategories
 import typing
+import re
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -258,7 +259,6 @@ class Apis:
                    '}'
             response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
             responseJson = json.loads(response.text)
-            print(responseJson)
             bearerToken = responseJson[FoodStuffsKeys.access_token.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refresh_token.value]
             refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="w")
@@ -304,8 +304,6 @@ class Apis:
                 file.write("    ]\n")
             else:
                 file.write("    ],\n")
-        for sz in siz:
-            print(sz)
 
     def _parseSize(self, size: str) -> str:
         cleanUpDict = {
@@ -314,17 +312,21 @@ class Apis:
             "small": "",
             "large": "",
             "tray": "",
-            "pk ": "pack ",
+            "pk": "pack ",
             "ea ": "each "
         }
+        if size[-2:] == "ea":
+            size = size[:-2]
+            size += "each"
         size = size.lower()
-        for key in cleanUpDict:
+        packs = re.findall(r'[x ]+[0-9]+[aA-zZ]+', size)
+        for pack in packs:
+            size = size.replace(pack, "pack")
+        for key in cleanUpDict.keys():
             size = size.replace(key, cleanUpDict[key])
         return size
 
     def _writeFoodStuffsResponse(self, itemsDict, jsonResponse: {str: typing.Any}, storeId: str):
-        if FoodStuffsKeys.products.value not in jsonResponse:
-            print(jsonResponse)
         items = jsonResponse[FoodStuffsKeys.products.value]
         storeId = storeId.replace("-", "")
         for item in items:
@@ -342,7 +344,7 @@ class Apis:
             category = finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])
             objectId = item[FoodStuffsItemKeys.objectID.value].split("-")[0]
             photoUrl = f'https://a.fsimg.co.nz/product/retail/fan/image/200x200/{objectId}.png'
-            size = self._parseSize(item[FoodStuffsItemKeys.size.value])
+            size = item[FoodStuffsItemKeys.size.value]
             parsedItem = {
                 f'{OutputJsonKeys.name.value}': name,
                 f'{OutputJsonKeys.price.value}': price,
