@@ -292,7 +292,4 @@ def clusterData():
 # dropTables()
 # createTables()
 # clusterData()
-db = Database()
-db.startConnection()
-print(db.fetchItemsByCategory("drink"))
-db.closeConnection()
+Apis().fetchCountdownItems()

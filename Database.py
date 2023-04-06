@@ -60,8 +60,14 @@ class Database:
         self._cursor.execute(f"SELECT * FROM {self._tableName}")
         return self._cursor.fetchall()
 
-    def fetchItemsByCategory(self, category):
-        self._cursor.execute(f"SELECT * FROM {self._tableName} WHERE {ConcatcKeys.category.value} like '%{category}%'")
+    def fetchItemsByCategory(self, categories):
+        query = ''
+        for category in categories:
+            query += f"{ConcatcKeys.category.value} like '%{category}%' OR "
+        query = query[:-4]
+        fullQuery = f"SELECT * FROM {self._tableName} WHERE {query}"
+        print(fullQuery)
+        self._cursor.execute(fullQuery)
         return self._cursor.fetchall()
 
     def testConnection(self):

@@ -74,8 +74,7 @@ class CountdownItemKeys(Enum):
     brand = "brand"
     type = "type"
     images = "images"
-    iconSmall = "small"
-    iconLarge = "large"
+    iconLarge = "big"
     category = "category"
 
 
@@ -142,11 +141,10 @@ class Apis:
                     brand = item[CountdownItemKeys.brand.value]
                     if brand not in itemDict:
                         itemDict[brand] = []
-
                     name = item[CountdownItemKeys.name.value]
                     price = item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]
                     category = finalCategories.concatCategories(department[CountdownItemKeys.name.value])
-                    photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconSmall.value]
+                    photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconLarge.value]
                     size = item[CountdownItemKeys.size.value][CountdownItemKeys.volumeSize.value]
                     if not size:
                         size = item[CountdownItemKeys.size.value][CountdownItemKeys.packageType.value]
