@@ -1,19 +1,14 @@
+from flask import Flask
+import SupermaketItems
+app = Flask(__name__)
+@app.get('/items')
+def getItems():
+    return {'items': SupermaketItems.fetchAll()}
 
-from Database import Database
-from enum import Enum
-from SuperMarketsApis import Apis
-class SupportedStores(Enum):
-    newWorld = "NewWorld"
-    PackNSave = "packNSave"
-    countdown = "Countdown"
-def createTables():
-    db = Database()
-    db.startConnection()
-    db.testConnection()
-    for store in SupportedStores:
-        db.createTable(tableName = store.value, tablePatameters = ["itemName VARCHAR(255)", "itemPrice VARCHAR(255)"])
-    db.printTables()
-    db.closeConnection()
+@app.route('/items/<categories>')
+def get_programming_language(categories):
+   return SupermaketItems.fetchCategories(categories)
 
-def fetchData():
-    return
+
+if __name__ == '__main__':
+    app.run()  # run our Flask app
