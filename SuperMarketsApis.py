@@ -160,13 +160,12 @@ class Apis:
                                   f'{OutputJsonKeys.size.value}': size,
                                   }
                     itemDict[brand].append(parsedItem)
-            # time.sleep(0.01)
 
         self._writeItem(itemDict, countDownDataFile)
         countDownDataFile.write("}\n")
         countDownDataFile.close()
 
-    def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId) -> [str]:
+    def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId) -> {str: int}:
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
@@ -187,37 +186,116 @@ class Apis:
                 'Accept-Language': 'en-GB,en;q=0.9',
                 'Content-Type': 'application/json'
             }
+
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
                       '"sortFacetValuesBy":"alpha","hitsPerPage":"1","facetFilters":[' \
                       f'"stores:{storeId}",' \
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
         url = f'https://api-prod.prod.fsniwaikato.kiwi' \
-              f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
+              f'/prod/mobile/v1/product/search/{superMarket.value}'
         headers = self._foodStuffsHeaders
         headers["Authorization"] = self._getToken(superMarketType=superMarket)
         response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
         dictionary = json.loads(response.text)
-        return dictionary[FoodStuffsKeys.facets.value][FoodStuffsKeys.category1NI.value].keys()
+        dictionary = dictionary[FoodStuffsKeys.facets.value][FoodStuffsKeys.category1NI.value]
+        facets = {}
+        for k in dictionary.keys():
+            v = dictionary[k]
+            facets[k] = int(v)
+        return facets
 
-    def fetchFoodStuffItems(self, superMarket: SuperMarketAbbreviation):
-        storeId = "63cbb6c6-4a0b-448d-aa78-8046692a082c"
+    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation):
+        url = "https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/store"
+        if superMarket == SuperMarketAbbreviation.packNSave:
+            self._foodStuffsHeaders = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'PackNSaveApp/4.5.0 (iOS 16.3.1)',
+                'Accept-Language': 'en-GB,en;q=0.9'
+            }
+        else:
+            self._foodStuffsHeaders = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
+                'Accept-Language': 'en-GB,en;q=0.9'
+            }
+        self._foodStuffsHeaders["Authorization"] = self._getToken(superMarketType=superMarket)
+        req = requests.get(url, headers=self._foodStuffsHeaders)
+
+        stores = json.loads(req.text)["stores"]
+        storeIds = []
+        for store in stores:
+            storeIds.append(store["id"])
+        parseDict = {}
         fileName = FileNames.newWorldFile.value
         if superMarket == SuperMarketAbbreviation.packNSave:
-            storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
             fileName = FileNames.packNSaveFile.value
-        facets = self._getFoodStuffsFacets(superMarket, storeId)
         outputFile = open(fileName, mode="w")
+        for identifier in storeIds:
+            resDict = self._fetchFoodStuffIStoreItems(superMarket, identifier)
+            for key in resDict.keys():
+                if key not in parseDict.keys():
+                    parseDict[key] = {}
+                for item in resDict[key]:
+                    name = item[OutputJsonKeys.name.value]
+                    if name in parseDict[key].keys():
+                        print(parseDict[key][name][OutputJsonKeys.price.value])
+                        if identifier in parseDict[key][name][OutputJsonKeys.price.value].keys():
+                            parseDict[key][name][OutputJsonKeys.price.value][identifier].append(item[OutputJsonKeys.price.value])
+                        else:
+                            parseDict[key][name][OutputJsonKeys.price.value][identifier] = [item[OutputJsonKeys.price.value]]
+                    else:
+                        parsedItem = {}
+                        parsedItem[OutputJsonKeys.name.value] = name
+                        parsedItem[OutputJsonKeys.category.value] = item[OutputJsonKeys.category.value]
+                        parsedItem[OutputJsonKeys.photoUrl.value] = item[OutputJsonKeys.photoUrl.value]
+                        parsedItem[OutputJsonKeys.size.value] = item[OutputJsonKeys.size.value]
+                        parsedItem[OutputJsonKeys.price.value] = {identifier: [item[OutputJsonKeys.price.value]]}
+                        parseDict[key][name] = parsedItem
+            print("done", identifier)
+        itemsDict = {}
+        for key in parseDict.keys():
+            itemsDict[key] = []
+            for item in parseDict[key].values():
+                itemsDict[key].append(item)
         outputFile.write("{\n")
+        self._writeItem(itemsDict, outputFile)
+        outputFile.write("}\n")
+        outputFile.close()
+
+    def _fetchFoodStuffIStoreItems(self, superMarket: SuperMarketAbbreviation, storeId) -> dict:
+        facets = self._getFoodStuffsFacets(superMarket, storeId)
+        fcs = []
+        count = 0
+        threshold = 900
+        st = ""
+        for facet in facets.keys():
+            value = facets[facet]
+            if count + value >= threshold:
+                st = st[:-1]
+                fcs.append(st)
+                count = 0
+                st = ""
+            count += value
+            st += f'"{FoodStuffsKeys.category1NI.value}:{facet}",'
+
+        if len(st) > 0:
+            st = st[:-1]
+            fcs.append(st)
+
         itemsDict = {}
         headers = self._foodStuffsHeaders
 
-        for facet in facets:
+        for facet in fcs:
             requestBody = '{' + f'"query":"","facets":["{FoodStuffsKeys.category1NI.value}",' \
                                 f'"onPromotion"],"attributesToHighlight":[],' \
-                                '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
+                                '"sortFacetValuesBy":"alpha","hitsPerPage":"1000","facetFilters":[' \
                                 f'"stores:{storeId}",' \
-                                f'["{FoodStuffsKeys.category1NI.value}:{facet}"],' \
+                                f'[{facet}],' \
                                 f'["onPromotion:{storeId}"],"tobacco:false"]' \
                                 '}'
             url = f'https://api-prod.prod.fsniwaikato.kiwi' \
@@ -226,18 +304,36 @@ class Apis:
             response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
-
-        self._writeItem(itemsDict, outputFile)
-        outputFile.write("}\n")
-        outputFile.close()
+        return itemsDict
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
+        headers = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'NewWorldApp/4.4.0 (iOS 16.3.1)',
+                'Content-Length': '325',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json'
+            }
+
+        if superMarketType == SuperMarketAbbreviation.packNSave:
+            headers = {
+                'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Connection': 'keep-alive',
+                'Accept': 'application/json, text/plain, */*',
+                'User-Agent': 'PackNSaveApp/4.4.0 (iOS 16.3.1)',
+                'Content-Length': '325',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json'
+            }
+
         try:
             refreshTokenFile = open(f"{superMarketType.value}refreshToken.txt", mode="r")
             url = 'https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/v1/users/login/refreshtoken'
             refreshToken = refreshTokenFile.readline(1)
             body = f'"refreshToken":"{refreshToken}"'
             body = "{" + body + "}"
-            response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
+            response = requests.post(url, headers=headers, data=body)
             responseJson = json.loads(response.text)
             bearerToken = responseJson[FoodStuffsKeys.accessToken.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refreshToken.value]
@@ -255,7 +351,7 @@ class Apis:
                    f'"password":"{os.getenv("EMAIL_PASSWORD")}",' \
                    f'"banner":"{superMarketType.value}"' + \
                    '}'
-            response = requests.post(url, headers=self._foodStuffsHeaders, data=body)
+            response = requests.post(url, headers=headers, data=body)
             responseJson = json.loads(response.text)
             bearerToken = responseJson[FoodStuffsKeys.access_token.value]
             newRefreshToken = responseJson[FoodStuffsKeys.refresh_token.value]
@@ -337,12 +433,15 @@ class Apis:
             if brand not in itemsDict:
                 itemsDict[brand] = []
 
-            name = item[FoodStuffsItemKeys.name.value]
+            name = item[FoodStuffsItemKeys.name.value].replace('"', "")
             price = price
             category = finalCategories.concatCategories(item[FoodStuffsItemKeys.category.value][0])
             objectId = item[FoodStuffsItemKeys.objectID.value].split("-")[0]
             photoUrl = f'https://a.fsimg.co.nz/product/retail/fan/image/200x200/{objectId}.png'
-            size = item[FoodStuffsItemKeys.size.value]
+            size = "each"
+            if FoodStuffsItemKeys.size.value in item.keys():
+                size = item[FoodStuffsItemKeys.size.value]
+            name = name + "-" + size
             parsedItem = {
                 f'{OutputJsonKeys.name.value}': name,
                 f'{OutputJsonKeys.price.value}': price,
@@ -351,3 +450,6 @@ class Apis:
                 f'{OutputJsonKeys.size.value}': size
             }
             itemsDict[brand].append(parsedItem)
+
+storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
+Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
