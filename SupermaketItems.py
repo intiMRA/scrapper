@@ -2,14 +2,15 @@ from Database import Database
 from Database import ConcatcKeys
 import json
 
+
 def fetchAll():
     db = Database()
     db.startConnection()
     items = db.fetchAllItems()
     db.closeConnection()
     output = _parseToDict(items)
-    for o in output:
-        print(o)
+    return output
+
 
 def _parseToDict(items) -> list:
     output = []
@@ -23,11 +24,15 @@ def _parseToDict(items) -> list:
         output.append(outPutItem)
     return output
 
-def fetchCategories():
+
+def fetchCategories(categories: str):
     db = Database()
     db.startConnection()
-    items = db.fetchItemsByCategory(["drink", "meat"])
+    items = db.fetchItemsByCategory(categories.split(","))
     db.closeConnection()
     output = _parseToDict(items)
-    for o in output:
-        print(o)
+    return output
+
+
+class SupermaketItems:
+    pass
