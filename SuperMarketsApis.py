@@ -161,7 +161,7 @@ class Apis:
                                   }
                     itemDict[brand].append(parsedItem)
 
-        self._writeItem(itemDict, countDownDataFile)
+        self._writeItem(itemDict, countDownDataFile, False)
         countDownDataFile.write("}\n")
         countDownDataFile.close()
 
@@ -235,6 +235,8 @@ class Apis:
         if superMarket == SuperMarketAbbreviation.packNSave:
             fileName = FileNames.packNSaveFile.value
         outputFile = open(fileName, mode="w")
+        storeIdsSize = len(storeIds)
+        count = 1
         for identifier in storeIds:
             resDict = self._fetchFoodStuffIStoreItems(superMarket, identifier)
             for key in resDict.keys():
@@ -243,27 +245,28 @@ class Apis:
                 for item in resDict[key]:
                     name = item[OutputJsonKeys.name.value]
                     if name in parseDict[key].keys():
-                        print(parseDict[key][name][OutputJsonKeys.price.value])
                         if identifier in parseDict[key][name][OutputJsonKeys.price.value].keys():
-                            parseDict[key][name][OutputJsonKeys.price.value][identifier].append(item[OutputJsonKeys.price.value])
+                            if float(item[OutputJsonKeys.price.value]) > float(parseDict[key][name][OutputJsonKeys.price.value][identifier]):
+                                parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[OutputJsonKeys.price.value]
                         else:
-                            parseDict[key][name][OutputJsonKeys.price.value][identifier] = [item[OutputJsonKeys.price.value]]
+                            parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[OutputJsonKeys.price.value]
                     else:
                         parsedItem = {}
                         parsedItem[OutputJsonKeys.name.value] = name
                         parsedItem[OutputJsonKeys.category.value] = item[OutputJsonKeys.category.value]
                         parsedItem[OutputJsonKeys.photoUrl.value] = item[OutputJsonKeys.photoUrl.value]
                         parsedItem[OutputJsonKeys.size.value] = item[OutputJsonKeys.size.value]
-                        parsedItem[OutputJsonKeys.price.value] = {identifier: [item[OutputJsonKeys.price.value]]}
+                        parsedItem[OutputJsonKeys.price.value] = {identifier: item[OutputJsonKeys.price.value]}
                         parseDict[key][name] = parsedItem
-            print("done", identifier)
+            print(f"done {count} out of {storeIdsSize}")
+            count += 1
         itemsDict = {}
         for key in parseDict.keys():
             itemsDict[key] = []
             for item in parseDict[key].values():
                 itemsDict[key].append(item)
         outputFile.write("{\n")
-        self._writeItem(itemsDict, outputFile)
+        self._writeItem(itemsDict, outputFile, True)
         outputFile.write("}\n")
         outputFile.close()
 
@@ -361,7 +364,7 @@ class Apis:
             self._token = f'Bearer {bearerToken}'
             return f'Bearer {bearerToken}'
 
-    def _writeItem(self, dictionary, file):
+    def _writeItem(self, dictionary, file, hasMultiplePrices):
         numBrands = len(dictionary.keys()) - 1
         siz = []
         for brandIndex, brand in enumerate(dictionary.keys()):
@@ -370,6 +373,13 @@ class Apis:
             for itemIndex, item in enumerate(dictionary[brand]):
                 name = item[OutputJsonKeys.name.value]
                 price = item[CountdownItemKeys.price.value]
+                priceStrig = f'"{price}"'
+                if hasMultiplePrices:
+                    priceStrig = "{"
+                    for priceKey in price.keys():
+                        priceStrig += f'"{priceKey}": "{price[priceKey]}",'
+                    priceStrig = priceStrig[:-1]
+                    priceStrig += "}"
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
                 size = self._parseSize(item[OutputJsonKeys.size.value])
@@ -379,7 +389,7 @@ class Apis:
                     file.write(
                         '        { ' +
                         f'"{OutputJsonKeys.name.value}": "{name}", ' +
-                        f'"{CountdownItemKeys.price.value}": "{price}", ' +
+                        f'"{CountdownItemKeys.price.value}": {priceStrig}, ' +
                         f'"{OutputJsonKeys.category.value}": "{category}",' +
                         f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}",' +
                         f'"{OutputJsonKeys.size.value}": "{size}"' +
@@ -388,7 +398,7 @@ class Apis:
                     file.write(
                         '        { ' +
                         f'"{OutputJsonKeys.name.value}": "{name}", '
-                        + f'"{CountdownItemKeys.price.value}": "{price}", ' +
+                        + f'"{CountdownItemKeys.price.value}": {priceStrig}, ' +
                         f'"{OutputJsonKeys.category.value}": "{category}",' +
                         f'"{OutputJsonKeys.photoUrl.value}": "{photoUrl}",' +
                         f'"{OutputJsonKeys.size.value}": "{size}"' +
@@ -450,6 +460,3 @@ class Apis:
                 f'{OutputJsonKeys.size.value}': size
             }
             itemsDict[brand].append(parsedItem)
-
-storeId = "21ecaaed-0749-4492-985e-4bb7ba43d59c"
-Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)

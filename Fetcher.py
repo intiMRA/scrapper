@@ -7,6 +7,7 @@ import finalCategories
 from SuperMarketsApis import OutputJsonKeys
 from fuzzywuzzy import fuzz
 from Database import ConcatcKeys
+from uuid import uuid1
 
 
 class SupportedStores(Enum):
@@ -47,13 +48,17 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 
 
 def writeItemsToDB(items):
-    db = Database()
+    # db = Database()
     itemsPerPage = 100
     page = 1
     values = []
+    psItems = {}
+    nwItems = {}
     for index, item in enumerate(items.values()):
         itemValues = []
         for concatKey in ConcatcKeys:
+            if concatKey == ConcatcKeys.newWorldPrices:
+
             value = ''
             if type(item[concatKey.value]) == list:
                 for vls in item[concatKey.value]:
@@ -290,4 +295,6 @@ def clusterData():
 
 # dropTables()
 # createTables()
-clusterData()
+ clusterData()
+
+# Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
