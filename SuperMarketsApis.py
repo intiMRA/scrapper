@@ -382,6 +382,7 @@ class Apis:
                     priceStrig += "}"
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
+                name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "")
                 size = self._parseSize(item[OutputJsonKeys.size.value])
                 if size not in siz:
                     siz.append(size)
@@ -437,9 +438,10 @@ class Apis:
             price = 1
             if storeId in item[FoodStuffsItemKeys.price.value].keys():
                 price = item[FoodStuffsItemKeys.price.value][storeId]
-            brand = "new world"
+            brand = "supermarket brand"
             if FoodStuffsItemKeys.brand.value in item.keys():
                 brand = item[FoodStuffsItemKeys.brand.value]
+            brand = brand.replace('"', "")
             if brand not in itemsDict:
                 itemsDict[brand] = []
 

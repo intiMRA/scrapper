@@ -6,6 +6,13 @@ from enum import Enum
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
+class Tables(Enum):
+    items = "items"
+    countdown = "countdown"
+    newWorldPrices = "newWorldPrices"
+    newWorldItem = "newWorldItem"
+    pakNSavePrices = "pakNSavePrices"
+    pakNSaveItem = "pakNSaveItem"
 class ConcatcKeys(Enum):
     newWorldItemNames = "newWorldItemNames"
     newWorldPrices = "newWorldPrices"
