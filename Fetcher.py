@@ -54,6 +54,15 @@ def writeItemsToDB(items):
     psItems = {}
     nwItems = {}
     cdIds = {}
+    # items
+    # itemId, category, brand
+
+    # countdown
+    # itemId, name, size, price, url
+
+    # foodStuffs
+    # itemId, supermarketId, name, size, price, url
+    
     for index, item in enumerate(items.values()):
         itemValues = []
         for concatKey in ConcatcKeys:
