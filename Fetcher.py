@@ -6,7 +6,7 @@ from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 from SuperMarketsApis import OutputJsonKeys
 from fuzzywuzzy import fuzz
-from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys
+from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys, Tables
 from uuid import uuid1
 
 
@@ -27,7 +27,7 @@ def createTables():
 def dropTables():
     db = Database()
     db.startConnection()
-    db.dropTable()
+    db.dropTables()
     db.printTables()
     db.closeConnection()
 
@@ -48,24 +48,16 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 
 
 def writeItemsToDB(items):
-    # db = Database()
+    db = Database()
     itemsPerPage = 100
     page = 1
     values = []
     psItems = {}
     nwItems = {}
     cdItems = {}
-    # items
-    # itemId, category, brand
-
-    # countdown
-    # itemId, name, size, price, url
-
-    # foodStuffs
-    # itemId, supermarketId, name, size, price, url
 
     for index, item in enumerate(items.values()):
-        itemId = uuid1()
+        itemId = str(uuid1())
         itemValues = [itemId, item[ItemsTableKeys.brand.value], item[ItemsTableKeys.category.value], f'{page}']
         if item[ConcatcKeys.countdownItemNames.value]:
             cdItems[itemId] = {
@@ -108,15 +100,42 @@ def writeItemsToDB(items):
         if index > 0 and index % itemsPerPage == 0:
             page += 1
 
+    cdValues = []
+    nwValues = []
+    psValues = []
     for item in values:
-        if item[0] in cdItems.keys() and item[0] in nwItems.keys() and item[0] in psItems.keys():
-            print(cdItems[item[0]][SupermarketTableKeys.name.value])
-            print(nwItems[item[0]][SupermarketTableKeys.name.value])
-            print(psItems[item[0]][SupermarketTableKeys.name.value])
-            print("-"*100)
-    # db.startConnection()
-    # db.insertItems(values)
-    # db.closeConnection()
+        if item[0] in cdItems.keys():
+            cdItem = []
+            for cv in cdItems[item[0]]:
+                cdItem.append(cv)
+            cdValues.append(cdItem)
+
+        if item[0] in nwItems.keys():
+            nwItem = []
+            for nv in nwItems[item[0]]:
+                nwItem.append(nv)
+            nwValues.append(nwItem)
+
+        if item[0] in psItems.keys():
+            psItem = []
+            for pv in psItems[item[0]]:
+                psItem.append(pv)
+            psValues.append(psItem)
+
+        # if item[0] in cdItems.keys() and item[0] in nwItems.keys() and item[0] in psItems.keys():
+        #     print()
+        #     print(nwItems[item[0]])
+        #     print(psItems[item[0]])
+        #     print("-"*100)
+
+    db.startConnection()
+
+    db.insertItems(values, Tables.items)
+    db.insertItems(cdValues, Tables.countdown)
+    db.insertItems(psValues, Tables.pakNSave)
+    db.insertItems(nwValues, Tables.newWorld)
+
+    db.closeConnection()
 
 
 def parseItemToString(values) -> str:
@@ -329,8 +348,8 @@ def clusterData():
     packNSaveFile.close()
 
 
-# dropTables()
-# createTables()
+dropTables()
+createTables()
 clusterData()
 
 # Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
