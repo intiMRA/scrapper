@@ -3,16 +3,34 @@ import os
 import MySQLdb
 from pathlib import Path
 from enum import Enum
+
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
+
 
 class Tables(Enum):
     items = "items"
     countdown = "countdown"
-    newWorldPrices = "newWorldPrices"
-    newWorldItem = "newWorldItem"
-    pakNSavePrices = "pakNSavePrices"
-    pakNSaveItem = "pakNSaveItem"
+    newWorld = "newWorld"
+    pakNSave = "pakNSave"
+
+
+class ItemsTableKeys(Enum):
+    itemId = "itemId"
+    category = "category"
+    brand = "brand"
+    page = "page"
+
+
+class SupermarketTableKeys(Enum):
+    itemId = "itemId"
+    name = "name"
+    price = "price"
+    size = "size"
+    photoUrl = "photoUrl"
+    supermarketId = "supermarketId"
+
+
 class ConcatcKeys(Enum):
     newWorldItemNames = "newWorldItemNames"
     newWorldPrices = "newWorldPrices"
@@ -32,6 +50,7 @@ class ConcatcKeys(Enum):
     category = "category"
     brand = "brand"
 
+
 class Database:
     _connection = None
     _cursor = None
@@ -42,7 +61,7 @@ class Database:
         for v in ConcatcKeys:
             parameterKeys += v.value + ","
         parameterKeys = 'page'
-        sql = f"INSERT INTO {self._tableName} ({parameterKeys}) VALUES ({'%s,'*len(values[0])}"
+        sql = f"INSERT INTO {self._tableName} ({parameterKeys}) VALUES ({'%s,' * len(values[0])}"
         sql = sql[:-1] + ")"
         self._cursor.executemany(sql, values)
 

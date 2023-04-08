@@ -6,7 +6,7 @@ from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 from SuperMarketsApis import OutputJsonKeys
 from fuzzywuzzy import fuzz
-from Database import ConcatcKeys
+from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys
 from uuid import uuid1
 
 
@@ -14,6 +14,7 @@ class SupportedStores(Enum):
     newWorld = "NewWorld"
     packNSave = "packNSave"
     countdown = "Countdown"
+
 
 def createTables():
     db = Database()
@@ -33,8 +34,8 @@ def dropTables():
 
 def fetchData():
     api = Apis()
-    api.fetchFoodStuffItems(SuperMarketAbbreviation.newWorld)
-    api.fetchFoodStuffItems(SuperMarketAbbreviation.packNSave)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
     api.fetchCountdownItems()
 
 
@@ -53,7 +54,7 @@ def writeItemsToDB(items):
     values = []
     psItems = {}
     nwItems = {}
-    cdIds = {}
+    cdItems = {}
     # items
     # itemId, category, brand
 
@@ -62,30 +63,68 @@ def writeItemsToDB(items):
 
     # foodStuffs
     # itemId, supermarketId, name, size, price, url
-    
-    for index, item in enumerate(items.values()):
-        itemValues = []
-        for concatKey in ConcatcKeys:
-            if concatKey == ConcatcKeys.newWorldPrices:
-                pass
 
-            value = ''
-            if type(item[concatKey.value]) == list:
-                for vls in item[concatKey.value]:
-                    value += vls + "@"
-                value = value[:-1].replace("'", "")
-            else:
-                value = item[concatKey.value]
-            itemValues.append(value)
-        itemValues.append(f'{page}')
+    for index, item in enumerate(items.values()):
+        itemId = uuid1()
+        itemValues = [itemId, item[ItemsTableKeys.brand.value], item[ItemsTableKeys.category.value], f'{page}']
+        if item[ConcatcKeys.countdownItemNames.value]:
+            cdItems[itemId] = {
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: parseItemToString(item[ConcatcKeys.countdownItemNames.value]),
+                SupermarketTableKeys.price.value: parseItemToString(item[ConcatcKeys.countdownPrices.value]),
+                SupermarketTableKeys.size.value: parseItemToString(item[ConcatcKeys.countdownSizes.value]),
+                SupermarketTableKeys.photoUrl.value: parseItemToString(item[ConcatcKeys.countdownphotoUrls.value])
+            }
+
+        for nwId in item[ConcatcKeys.newWorldItemNames.value].keys():
+            name = parseItemToString(item[ConcatcKeys.newWorldItemNames.value][nwId])
+            price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
+            size = parseItemToString(item[ConcatcKeys.newWorldSizes.value][nwId])
+            url = parseItemToString(item[ConcatcKeys.newWorldphotoUrls.value][nwId])
+            nwItems[itemId] = {
+                SupermarketTableKeys.supermarketId.value: nwId,
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: name,
+                SupermarketTableKeys.price.value: price,
+                SupermarketTableKeys.size.value: size,
+                SupermarketTableKeys.photoUrl.value: url
+            }
+
+        for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
+            name = parseItemToString(item[ConcatcKeys.packNSaveItemNames.value][psId])
+            price = parseItemToString(item[ConcatcKeys.packNSavePrices.value][psId])
+            size = parseItemToString(item[ConcatcKeys.packNSaveSizes.value][psId])
+            url = parseItemToString(item[ConcatcKeys.packNSavephotoUrls.value][psId])
+            psItems[itemId] = {
+                SupermarketTableKeys.supermarketId.value: psId,
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: name,
+                SupermarketTableKeys.price.value: price,
+                SupermarketTableKeys.size.value: size,
+                SupermarketTableKeys.photoUrl.value: url
+            }
+
         values.append(itemValues)
         if index > 0 and index % itemsPerPage == 0:
             page += 1
+
     for item in values:
-        print(item[-1])
+        if item[0] in cdItems.keys() and item[0] in nwItems.keys() and item[0] in psItems.keys():
+            print(cdItems[item[0]][SupermarketTableKeys.name.value])
+            print(nwItems[item[0]][SupermarketTableKeys.name.value])
+            print(psItems[item[0]][SupermarketTableKeys.name.value])
+            print("-"*100)
     # db.startConnection()
     # db.insertItems(values)
     # db.closeConnection()
+
+
+def parseItemToString(values) -> str:
+    itemString = ''
+    for value in values:
+        itemString += f'{value}@'
+
+    return itemString[:-1]
 
 
 def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: SupportedStores):
@@ -280,14 +319,15 @@ def clusterData():
             pakNSaveName = finalCategories.transformItem(pakNSaveItem[OutputJsonKeys.name.value], stopSet)
             _populateItem(items, pakNSaveItem, pakNSaveName, pakNSaveName in items, packNSaveKeyMap[psk],
                           SupportedStores.packNSave)
-    # writeItemsToDB(items)
-    f = open("lol.txt", mode="w")
-    json.dump(items, f)
-    f.close()
+    writeItemsToDB(items)
+    # f = open("lol.txt", mode="w")
+    # json.dump(items, f)
+    # f.close()
 
     countdownFile.close()
     newWorldFile.close()
     packNSaveFile.close()
+
 
 # dropTables()
 # createTables()
