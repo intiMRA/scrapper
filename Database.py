@@ -3,8 +3,33 @@ import os
 import MySQLdb
 from pathlib import Path
 from enum import Enum
+
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
+
+
+class Tables(Enum):
+    items = "items"
+    countdown = "countdown"
+    newWorld = "newWorld"
+    pakNSave = "pakNSave"
+
+
+class ItemsTableKeys(Enum):
+    itemId = "itemId"
+    category = "category"
+    brand = "brand"
+    page = "page"
+
+
+class SupermarketTableKeys(Enum):
+    itemId = "itemId"
+    name = "name"
+    price = "price"
+    size = "size"
+    photoUrl = "photoUrl"
+    supermarketId = "supermarketId"
+
 
 class ConcatcKeys(Enum):
     newWorldItemNames = "newWorldItemNames"
@@ -25,39 +50,68 @@ class ConcatcKeys(Enum):
     category = "category"
     brand = "brand"
 
+
 class Database:
     _connection = None
     _cursor = None
-    _tableName = "items"
 
-    def insertItems(self, values: [str]):
-        parameterKeys = ""
-        for v in ConcatcKeys:
-            parameterKeys += v.value + ","
-        parameterKeys = 'page'
-        sql = f"INSERT INTO {self._tableName} ({parameterKeys}) VALUES ({'%s,'*len(values[0])}"
+    def insertItems(self, values: [str], table: Tables):
+        itemKeys = ""
+        if table == Tables.items:
+            for v in ItemsTableKeys:
+                itemKeys += v.value + " ,"
+            itemKeys = itemKeys[:-1]
+        else:
+            itemKeys = ""
+            for v in SupermarketTableKeys:
+                if v == SupermarketTableKeys.supermarketId and table == Tables.countdown:
+                    continue
+                itemKeys += v.value + " ,"
+            itemKeys = itemKeys[:-2]
+
+        sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({'%s,' * len(values[0])}"
         sql = sql[:-1] + ")"
+        print(sql)
         self._cursor.executemany(sql, values)
-
         self._connection.commit()
 
     def createTable(self):
-        parameterKeys = ""
-        for v in ConcatcKeys:
-            parameterKeys += v.value + " MEDIUMTEXT,"
-        parameterKeys += "page VARCHAR(255)"
-        self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {self._tableName} ({parameterKeys})")
+        # items
+        # itemId, category, brand, page
 
-    def dropTable(self):
-        self._cursor.execute(f"DROP TABLE {self._tableName}")
+        # countdown
+        # itemId, name, size, price, url
+
+        # foodStuffs
+        # itemId, supermarketId, name, size, price, url
+
+        itemKeys = ""
+        for v in ItemsTableKeys:
+            itemKeys += v.value + " MEDIUMTEXT,"
+        itemKeys = itemKeys[:-1]
+        self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {Tables.items.value} ({itemKeys})")
+        for table in Tables:
+            if table == Tables.items:
+                continue
+            itemKeys = ""
+            for v in SupermarketTableKeys:
+                if v == SupermarketTableKeys.supermarketId and table == Tables.countdown:
+                    continue
+                itemKeys += v.value + " LONGTEXT,"
+            itemKeys = itemKeys[:-1]
+            self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {table.value} ({itemKeys})")
+
+    def dropTables(self):
+        for table in Tables:
+            self._cursor.execute(f"DROP TABLE {table.name}")
 
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
         for table in self._cursor:
             print(table)
 
-    def fetchAllItems(self):
-        self._cursor.execute(f"SELECT * FROM {self._tableName}")
+    def fetchAllItems(self, table: Tables):
+        self._cursor.execute(f"SELECT * FROM {table.value}")
         return self._cursor.fetchall()
 
     def fetchItemsByCategory(self, categories):
@@ -65,7 +119,7 @@ class Database:
         for category in categories:
             query += f"{ConcatcKeys.category.value} like '%{category}%' OR "
         query = query[:-4]
-        fullQuery = f"SELECT * FROM {self._tableName} WHERE {query}"
+        fullQuery = f"SELECT * FROM {Tables.items.value} WHERE {query}"
         print(fullQuery)
         self._cursor.execute(fullQuery)
         return self._cursor.fetchall()

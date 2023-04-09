@@ -6,7 +6,8 @@ from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 from SuperMarketsApis import OutputJsonKeys
 from fuzzywuzzy import fuzz
-from Database import ConcatcKeys
+from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys, Tables
+from uuid import uuid1
 
 
 class SupportedStores(Enum):
@@ -26,15 +27,15 @@ def createTables():
 def dropTables():
     db = Database()
     db.startConnection()
-    db.dropTable()
+    db.dropTables()
     db.printTables()
     db.closeConnection()
 
 
 def fetchData():
     api = Apis()
-    api.fetchFoodStuffItems(SuperMarketAbbreviation.newWorld)
-    api.fetchFoodStuffItems(SuperMarketAbbreviation.packNSave)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
     api.fetchCountdownItems()
 
 
@@ -51,43 +52,118 @@ def writeItemsToDB(items):
     itemsPerPage = 100
     page = 1
     values = []
+    psItems = {}
+    nwItems = {}
+    cdItems = {}
+
     for index, item in enumerate(items.values()):
-        itemValues = []
-        for concatKey in ConcatcKeys:
-            value = ''
-            if type(item[concatKey.value]) == list:
-                for vls in item[concatKey.value]:
-                    value += vls + "@"
-                value = value[:-1].replace("'", "")
-            else:
-                value = item[concatKey.value]
-            itemValues.append(value)
-        itemValues.append(f'{page}')
+        itemId = str(uuid1())
+        itemValues = [itemId, item[ItemsTableKeys.brand.value], item[ItemsTableKeys.category.value], f'{page}']
+        if item[ConcatcKeys.countdownItemNames.value]:
+            cdItems[itemId] = {
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: parseItemToString(item[ConcatcKeys.countdownItemNames.value]),
+                SupermarketTableKeys.price.value: parseItemToString(item[ConcatcKeys.countdownPrices.value]),
+                SupermarketTableKeys.size.value: parseItemToString(item[ConcatcKeys.countdownSizes.value]),
+                SupermarketTableKeys.photoUrl.value: parseItemToString(item[ConcatcKeys.countdownphotoUrls.value])
+            }
+
+        for nwId in item[ConcatcKeys.newWorldItemNames.value].keys():
+            name = parseItemToString(item[ConcatcKeys.newWorldItemNames.value][nwId])
+            price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
+            size = parseItemToString(item[ConcatcKeys.newWorldSizes.value][nwId])
+            url = parseItemToString(item[ConcatcKeys.newWorldphotoUrls.value][nwId])
+            nwItems[itemId] = {
+                SupermarketTableKeys.supermarketId.value: nwId,
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: name,
+                SupermarketTableKeys.price.value: price,
+                SupermarketTableKeys.size.value: size,
+                SupermarketTableKeys.photoUrl.value: url
+            }
+
+        for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
+            name = parseItemToString(item[ConcatcKeys.packNSaveItemNames.value][psId])
+            price = parseItemToString(item[ConcatcKeys.packNSavePrices.value][psId])
+            size = parseItemToString(item[ConcatcKeys.packNSaveSizes.value][psId])
+            url = parseItemToString(item[ConcatcKeys.packNSavephotoUrls.value][psId])
+            psItems[itemId] = {
+                SupermarketTableKeys.supermarketId.value: psId,
+                SupermarketTableKeys.itemId.value: itemId,
+                SupermarketTableKeys.name.value: name,
+                SupermarketTableKeys.price.value: price,
+                SupermarketTableKeys.size.value: size,
+                SupermarketTableKeys.photoUrl.value: url
+            }
+
         values.append(itemValues)
         if index > 0 and index % itemsPerPage == 0:
             page += 1
+
+    cdValues = []
+    nwValues = []
+    psValues = []
     for item in values:
-        print(item[-1])
-    # db.startConnection()
-    # db.insertItems(values)
-    # db.closeConnection()
+        if item[0] in cdItems.keys():
+            cdItem = []
+            for cv in cdItems[item[0]]:
+                cdItem.append(cv)
+            cdValues.append(cdItem)
+
+        if item[0] in nwItems.keys():
+            nwItem = []
+            for nv in nwItems[item[0]]:
+                nwItem.append(nv)
+            nwValues.append(nwItem)
+
+        if item[0] in psItems.keys():
+            psItem = []
+            for pv in psItems[item[0]]:
+                psItem.append(pv)
+            psValues.append(psItem)
+
+        # if item[0] in cdItems.keys() and item[0] in nwItems.keys() and item[0] in psItems.keys():
+        #     print()
+        #     print(nwItems[item[0]])
+        #     print(psItems[item[0]])
+        #     print("-"*100)
+
+    db.startConnection()
+
+    db.insertItems(values, Tables.items)
+    db.insertItems(cdValues, Tables.countdown)
+    db.insertItems(psValues, Tables.pakNSave)
+    db.insertItems(nwValues, Tables.newWorld)
+
+    db.closeConnection()
+
+
+def parseItemToString(values) -> str:
+    itemString = ''
+    for value in values:
+        itemString += f'{value}@'
+
+    return itemString[:-1]
 
 
 def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: SupportedStores):
     if not itemExists:
         items[itemName] = {}
-        items[itemName][ConcatcKeys.newWorldItemNames.value] = []
-        items[itemName][ConcatcKeys.newWorldPrices.value] = []
-        items[itemName][ConcatcKeys.newWorldSizes.value] = []
-        items[itemName][ConcatcKeys.newWorldphotoUrls.value] = []
+        items[itemName][ConcatcKeys.newWorldItemNames.value] = {}
+        items[itemName][ConcatcKeys.newWorldPrices.value] = {}
+        items[itemName][ConcatcKeys.newWorldSizes.value] = {}
+        items[itemName][ConcatcKeys.newWorldphotoUrls.value] = {}
+
         items[itemName][ConcatcKeys.countdownItemNames.value] = []
         items[itemName][ConcatcKeys.countdownPrices.value] = []
         items[itemName][ConcatcKeys.countdownSizes.value] = []
-        items[itemName][ConcatcKeys.packNSaveSizes.value] = []
-        items[itemName][ConcatcKeys.packNSaveItemNames.value] = []
-        items[itemName][ConcatcKeys.packNSavePrices.value] = []
         items[itemName][ConcatcKeys.countdownphotoUrls.value] = []
-        items[itemName][ConcatcKeys.packNSavephotoUrls.value] = []
+
+        items[itemName][ConcatcKeys.packNSaveSizes.value] = {}
+        items[itemName][ConcatcKeys.packNSaveItemNames.value] = {}
+        items[itemName][ConcatcKeys.packNSavePrices.value] = {}
+        items[itemName][ConcatcKeys.packNSavephotoUrls.value] = {}
+
         items[itemName][ConcatcKeys.category.value] = dictionary[OutputJsonKeys.category.value]
         items[itemName][ConcatcKeys.brand.value] = brand
 
@@ -97,24 +173,47 @@ def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: S
     urls = items[itemName][ConcatcKeys.countdownphotoUrls.value]
     if supermarket == SupportedStores.newWorld:
         names = items[itemName][ConcatcKeys.newWorldItemNames.value]
-        prices = items[itemName][ConcatcKeys.newWorldPrices.value]
         sizes = items[itemName][ConcatcKeys.newWorldSizes.value]
+        for key in names.keys():
+            if names[key] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key]:
+                return
+
+        prices = items[itemName][ConcatcKeys.newWorldPrices.value]
         urls = items[itemName][ConcatcKeys.newWorldphotoUrls.value]
 
-    if supermarket == SupportedStores.packNSave:
+    elif supermarket == SupportedStores.packNSave:
         names = items[itemName][ConcatcKeys.packNSaveItemNames.value]
-        prices = items[itemName][ConcatcKeys.packNSavePrices.value]
         sizes = items[itemName][ConcatcKeys.packNSaveSizes.value]
+        for key in names.keys():
+            if names[key] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key]:
+                return
+
+        prices = items[itemName][ConcatcKeys.packNSavePrices.value]
         urls = items[itemName][ConcatcKeys.packNSavephotoUrls.value]
 
-    for index, item in enumerate(names):
-        if item == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[index]:
-            return
+    else:
+        for index, item in enumerate(names):
+            if item == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[index]:
+                return
 
-    names.append(dictionary[OutputJsonKeys.name.value])
-    prices.append(dictionary[OutputJsonKeys.price.value])
-    sizes.append(dictionary["size"])
-    urls.append(dictionary["photoUrl"])
+        names.append(dictionary[OutputJsonKeys.name.value])
+        prices.append(dictionary[OutputJsonKeys.price.value])
+        sizes.append(dictionary["size"])
+        urls.append(dictionary["photoUrl"])
+
+    if supermarket == SupportedStores.newWorld or supermarket == SupportedStores.packNSave:
+        for priceKey in dictionary[OutputJsonKeys.price.value].keys():
+            if priceKey in prices.keys():
+                prices[priceKey].append(dictionary[OutputJsonKeys.price.value][priceKey])
+                names[priceKey].append(dictionary[OutputJsonKeys.name.value])
+                sizes[priceKey].append(dictionary[OutputJsonKeys.size.value])
+                urls[priceKey].append(dictionary[OutputJsonKeys.photoUrl.value])
+            else:
+                prices[priceKey] = [dictionary[OutputJsonKeys.price.value][priceKey]]
+                names[priceKey] = [dictionary[OutputJsonKeys.name.value]]
+                sizes[priceKey] = [dictionary[OutputJsonKeys.size.value]]
+                urls[priceKey] = [dictionary[OutputJsonKeys.photoUrl.value]]
+
     items[itemName][ConcatcKeys.category.value] = concatCategory(
         items[itemName][ConcatcKeys.category.value], dictionary[OutputJsonKeys.category.value])
 
@@ -241,53 +340,16 @@ def clusterData():
                           SupportedStores.packNSave)
     writeItemsToDB(items)
     # f = open("lol.txt", mode="w")
-    # for key in sorted(items.keys(), key=lambda x: x.replace("-", "")):
-    #     if items[key][ConcatcKeys.countdownItemNames.value] and items[key][ConcatcKeys.newWorldItemNames.value] and items[key][ConcatcKeys.packNSaveItemNames.value]:
-    #         f.write(str(items[key]["brand"]) + "\n")
-    #         f.write(str(items[key]["category"]) + "\n")
-    #         f.write(key + "\n\n")
-    #         f.write("cd" + str(items[key][ConcatcKeys.countdownItemNames.value]) + str(
-    #             items[key][ConcatcKeys.countdownSizes.value]) + "\n")
-    #         f.write("nw" + str(items[key][ConcatcKeys.newWorldItemNames.value]) + str(items[key][ConcatcKeys.newWorldSizes.value]) + "\n")
-    #         f.write("ps" + str(items[key][ConcatcKeys.packNSaveItemNames.value]) + str(
-    #             items[key][ConcatcKeys.packNSaveSizes.value]) + "\n")
-    #         f.write("-" * 100 + "\n")
-    #
-    #     if items[key][ConcatcKeys.countdownItemNames.value] and items[key][ConcatcKeys.newWorldItemNames.value] and not items[key][ConcatcKeys.packNSaveItemNames.value]:
-    #         f.write(str(items[key]["brand"]) + "\n")
-    #         f.write(str(items[key]["category"]) + "\n")
-    #         f.write(key + "\n\n")
-    #         f.write("cd" + str(items[key][ConcatcKeys.countdownItemNames.value]) + str(
-    #             items[key][ConcatcKeys.countdownSizes.value]) + "\n")
-    #         f.write("nw" + str(items[key][ConcatcKeys.newWorldItemNames.value]) + str(
-    #             items[key][ConcatcKeys.newWorldSizes.value]) + "\n")
-    #         f.write("-" * 100 + "\n")
-    #
-    #     if items[key][ConcatcKeys.countdownItemNames.value] and not items[key][ConcatcKeys.newWorldItemNames.value] and items[key][ConcatcKeys.packNSaveItemNames.value]:
-    #         f.write(str(items[key]["brand"]) + "\n")
-    #         f.write(str(items[key]["category"]) + "\n")
-    #         f.write(key + "\n\n")
-    #         f.write("cd" + str(items[key][ConcatcKeys.countdownItemNames.value]) + str(
-    #             items[key][ConcatcKeys.countdownSizes.value]) + "\n")
-    #         f.write("ps" + str(items[key][ConcatcKeys.packNSaveItemNames.value]) + str(
-    #             items[key][ConcatcKeys.packNSaveSizes.value]) + "\n")
-    #         f.write("-" * 100 + "\n")
-    #
-    #     if not items[key][ConcatcKeys.countdownItemNames.value] and items[key][ConcatcKeys.newWorldItemNames.value] and items[key][ConcatcKeys.packNSaveItemNames.value]:
-    #         f.write(str(items[key]["brand"]) + "\n")
-    #         f.write(str(items[key]["category"]) + "\n")
-    #         f.write(key + "\n\n")
-    #         f.write("cd" + str(items[key][ConcatcKeys.newWorldItemNames.value]) + str(
-    #             items[key][ConcatcKeys.newWorldSizes.value]) + "\n")
-    #         f.write("ps" + str(items[key][ConcatcKeys.packNSaveItemNames.value]) + str(
-    #             items[key][ConcatcKeys.packNSaveSizes.value]) + "\n")
-    #         f.write("-" * 100 + "\n")
+    # json.dump(items, f)
     # f.close()
 
     countdownFile.close()
     newWorldFile.close()
     packNSaveFile.close()
 
-# dropTables()
-# createTables()
+
+dropTables()
+createTables()
 clusterData()
+
+# Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
