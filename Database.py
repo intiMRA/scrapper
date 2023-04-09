@@ -71,7 +71,6 @@ class Database:
 
         sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({'%s,' * len(values[0])}"
         sql = sql[:-1] + ")"
-        print(sql)
         self._cursor.executemany(sql, values)
         self._connection.commit()
 
@@ -114,6 +113,30 @@ class Database:
         self._cursor.execute(f"SELECT * FROM {table.value}")
         return self._cursor.fetchall()
 
+    def fetchPage(self, page):
+        self._cursor.execute(f"SELECT * FROM {Tables.items.value} WHERE {ItemsTableKeys.page.value} = {page}")
+        return self._cursor.fetchall()
+
+    def fetchCountdownItems(self, itemIds):
+        query = ''
+        for itemId in itemIds:
+            query += f'"{itemId}",'
+        query = query[:-1]
+        sql = f"SELECT * FROM {Tables.countdown.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query})"
+        print(sql)
+        self._cursor.execute(sql)
+        return self._cursor.fetchall()
+
+    def fetchFoodStuffsItems(self, itemIds, supermarketId, table: Tables):
+        query = ''
+        for itemId in itemIds:
+            query += f'"{itemId}",'
+        query = query[:-1]
+        sql = f"SELECT * FROM {table.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query}) " \
+              f"AND {SupermarketTableKeys.supermarketId.value} like '%{supermarketId}%'"
+        print(sql)
+        self._cursor.execute(sql)
+        return self._cursor.fetchall()
     def fetchItemsByCategory(self, categories):
         query = ''
         for category in categories:

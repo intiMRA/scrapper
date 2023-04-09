@@ -74,12 +74,12 @@ def writeItemsToDB(items):
             size = parseItemToString(item[ConcatcKeys.newWorldSizes.value][nwId])
             url = parseItemToString(item[ConcatcKeys.newWorldphotoUrls.value][nwId])
             nwItems[itemId] = {
-                SupermarketTableKeys.supermarketId.value: nwId,
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
-                SupermarketTableKeys.photoUrl.value: url
+                SupermarketTableKeys.photoUrl.value: url,
+                SupermarketTableKeys.supermarketId.value: nwId
             }
 
         for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
@@ -88,12 +88,12 @@ def writeItemsToDB(items):
             size = parseItemToString(item[ConcatcKeys.packNSaveSizes.value][psId])
             url = parseItemToString(item[ConcatcKeys.packNSavephotoUrls.value][psId])
             psItems[itemId] = {
-                SupermarketTableKeys.supermarketId.value: psId,
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
-                SupermarketTableKeys.photoUrl.value: url
+                SupermarketTableKeys.photoUrl.value: url,
+                SupermarketTableKeys.supermarketId.value: psId
             }
 
         values.append(itemValues)
@@ -106,19 +106,19 @@ def writeItemsToDB(items):
     for item in values:
         if item[0] in cdItems.keys():
             cdItem = []
-            for cv in cdItems[item[0]]:
+            for cv in cdItems[item[0]].values():
                 cdItem.append(cv)
             cdValues.append(cdItem)
 
         if item[0] in nwItems.keys():
             nwItem = []
-            for nv in nwItems[item[0]]:
+            for nv in nwItems[item[0]].values():
                 nwItem.append(nv)
             nwValues.append(nwItem)
 
         if item[0] in psItems.keys():
             psItem = []
-            for pv in psItems[item[0]]:
+            for pv in psItems[item[0]].values():
                 psItem.append(pv)
             psValues.append(psItem)
 
@@ -141,7 +141,7 @@ def writeItemsToDB(items):
 def parseItemToString(values) -> str:
     itemString = ''
     for value in values:
-        itemString += f'{value}@'
+        itemString += f'{value.replace("[", "").replace("]", "")}@'
 
     return itemString[:-1]
 
