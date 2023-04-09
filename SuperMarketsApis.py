@@ -383,6 +383,9 @@ class Apis:
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
                 name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "")
+                numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
+                for number in numbers:
+                    name = name.replace(number, "")
                 size = self._parseSize(item[OutputJsonKeys.size.value])
                 if size not in siz:
                     siz.append(size)

@@ -52,15 +52,15 @@ def writeItemsToDB(items):
     itemsPerPage = 100
     page = 1
     values = []
-    psItems = {}
-    nwItems = {}
-    cdItems = {}
+    psItemsDict = {}
+    nwItemsDict = {}
+    cdItemsDict = {}
 
-    for index, item in enumerate(items.values()):
+    for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
         itemId = str(uuid1())
         itemValues = [itemId, item[ItemsTableKeys.brand.value], item[ItemsTableKeys.category.value], f'{page}']
         if item[ConcatcKeys.countdownItemNames.value]:
-            cdItems[itemId] = {
+            cdItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: parseItemToString(item[ConcatcKeys.countdownItemNames.value]),
                 SupermarketTableKeys.price.value: parseItemToString(item[ConcatcKeys.countdownPrices.value]),
@@ -73,7 +73,7 @@ def writeItemsToDB(items):
             price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
             size = parseItemToString(item[ConcatcKeys.newWorldSizes.value][nwId])
             url = parseItemToString(item[ConcatcKeys.newWorldphotoUrls.value][nwId])
-            nwItems[itemId] = {
+            nwItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
@@ -87,7 +87,7 @@ def writeItemsToDB(items):
             price = parseItemToString(item[ConcatcKeys.packNSavePrices.value][psId])
             size = parseItemToString(item[ConcatcKeys.packNSaveSizes.value][psId])
             url = parseItemToString(item[ConcatcKeys.packNSavephotoUrls.value][psId])
-            psItems[itemId] = {
+            psItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
@@ -103,31 +103,32 @@ def writeItemsToDB(items):
     cdValues = []
     nwValues = []
     psValues = []
+    out = open("out.txt", mode="w")
     for item in values:
-        if item[0] in cdItems.keys():
+        if item[0] in cdItemsDict.keys():
             cdItem = []
-            for cv in cdItems[item[0]].values():
+            for cv in cdItemsDict[item[0]].values():
                 cdItem.append(cv)
             cdValues.append(cdItem)
 
-        if item[0] in nwItems.keys():
+        if item[0] in nwItemsDict.keys():
             nwItem = []
-            for nv in nwItems[item[0]].values():
+            for nv in nwItemsDict[item[0]].values():
                 nwItem.append(nv)
             nwValues.append(nwItem)
 
-        if item[0] in psItems.keys():
+        if item[0] in psItemsDict.keys():
             psItem = []
-            for pv in psItems[item[0]].values():
+            for pv in psItemsDict[item[0]].values():
                 psItem.append(pv)
             psValues.append(psItem)
 
-        # if item[0] in cdItems.keys() and item[0] in nwItems.keys() and item[0] in psItems.keys():
-        #     print()
-        #     print(nwItems[item[0]])
-        #     print(psItems[item[0]])
-        #     print("-"*100)
-
+        if item[0] in cdItemsDict.keys() and item[0] in nwItemsDict.keys() and item[0] in psItemsDict.keys():
+            out.write(str(cdItemsDict[item[0]]["name"])+"\n")
+            out.write(str(nwItemsDict[item[0]]["name"])+"\n")
+            out.write(str(psItemsDict[item[0]]["name"])+"\n")
+            out.write("-"*100+"\n")
+    out.close()
     db.startConnection()
 
     db.insertItems(values, Tables.items)
@@ -136,6 +137,26 @@ def writeItemsToDB(items):
     db.insertItems(nwValues, Tables.newWorld)
 
     db.closeConnection()
+
+
+def sortingKey(item) -> str:
+    names = []
+    for nameString in item[ConcatcKeys.countdownItemNames.value]:
+        for name in nameString.split("@"):
+            names.append(name.split(" ")[0])
+
+    for nameKey in item[ConcatcKeys.packNSaveItemNames.value].keys():
+        for nameString in item[ConcatcKeys.packNSaveItemNames.value][nameKey]:
+            for name in nameString.split("@"):
+                names.append(name.split(" ")[0])
+        break
+
+    for nameKey in item[ConcatcKeys.newWorldItemNames.value].keys():
+        for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
+            for name in nameString.split("@"):
+                names.append(name.split(" ")[0])
+    names = sorted(names)
+    return names[0]
 
 
 def parseItemToString(values) -> str:
@@ -175,8 +196,10 @@ def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: S
         names = items[itemName][ConcatcKeys.newWorldItemNames.value]
         sizes = items[itemName][ConcatcKeys.newWorldSizes.value]
         for key in names.keys():
-            if names[key] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key]:
-                return
+            for index in range(0, len(names[key])):
+                if names[key][index] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key][
+                    index]:
+                    return
 
         prices = items[itemName][ConcatcKeys.newWorldPrices.value]
         urls = items[itemName][ConcatcKeys.newWorldphotoUrls.value]
@@ -185,8 +208,10 @@ def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: S
         names = items[itemName][ConcatcKeys.packNSaveItemNames.value]
         sizes = items[itemName][ConcatcKeys.packNSaveSizes.value]
         for key in names.keys():
-            if names[key] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key]:
-                return
+            for index in range(0, len(names[key])):
+                if names[key][index] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key][
+                    index]:
+                    return
 
         prices = items[itemName][ConcatcKeys.packNSavePrices.value]
         urls = items[itemName][ConcatcKeys.packNSavephotoUrls.value]
@@ -352,4 +377,4 @@ dropTables()
 createTables()
 clusterData()
 
-# Apis().fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
+# Apis().fetchCountdownItems()
