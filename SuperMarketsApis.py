@@ -287,7 +287,7 @@ class Apis:
         facets = self._getFoodStuffsFacets(superMarket, storeId)
         fcs = []
         count = 0
-        threshold = 500
+        threshold = 999
         st = ""
         for facet in facets.keys():
             value = facets[facet]
