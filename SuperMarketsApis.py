@@ -1,6 +1,7 @@
 import time
 
 import requests
+from requests.adapters import Retry, HTTPAdapter
 import json
 from enum import Enum
 from dotenv import load_dotenv
@@ -317,7 +318,10 @@ class Apis:
             url = f'https://api-prod.prod.fsniwaikato.kiwi' \
                   f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
             headers["Authorization"] = self._token
-            response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+            s = requests.session()
+            retries = Retry(total=5, backoff_factor=0.1, status_forcelist=[400])
+            s.mount('https://', HTTPAdapter(max_retries=retries))
+            response = s.post(url, headers=self._foodStuffsHeaders, data=requestBody)
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
         return itemsDict
