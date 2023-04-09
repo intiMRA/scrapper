@@ -1,3 +1,5 @@
+import time
+
 import requests
 import json
 from enum import Enum
@@ -7,6 +9,7 @@ from pathlib import Path
 import finalCategories
 import typing
 import re
+import gc
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -169,22 +172,25 @@ class Apis:
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
+                'Pragma': 'no-cache',
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'PackNSaveApp/4.4.0 (iOS 16.3.1)',
-                'Content-Length': '325',
+                'User-Agent': 'PackNSaveApp/4.5.0 (iOS 16.3.1)',
+                'Cache-Control': 'no-cache',
                 'Accept-Language': 'en-GB,en;q=0.9',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
             }
         else:
             self._foodStuffsHeaders = {
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'NewWorldApp/4.4.0 (iOS 16.3.1)',
-                'Content-Length': '325',
+                'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
+                'Cache-Control': 'no-cache',
                 'Accept-Language': 'en-GB,en;q=0.9',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
             }
 
         requestBody = '{"query":"","facets":["category1NI","onPromotion"],"attributesToHighlight":[],' \
@@ -193,7 +199,7 @@ class Apis:
                       f'["onPromotion:{storeId}"],"tobacco:false"]' \
                       '}'
         url = f'https://api-prod.prod.fsniwaikato.kiwi' \
-              f'/prod/mobile/v1/product/search/{superMarket.value}'
+              f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
         headers = self._foodStuffsHeaders
         headers["Authorization"] = self._getToken(superMarketType=superMarket)
         response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
@@ -213,7 +219,10 @@ class Apis:
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
                 'User-Agent': 'PackNSaveApp/4.5.0 (iOS 16.3.1)',
-                'Accept-Language': 'en-GB,en;q=0.9'
+                'Cache-Control': 'no-cache',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
             }
         else:
             self._foodStuffsHeaders = {
@@ -221,7 +230,10 @@ class Apis:
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
                 'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
-                'Accept-Language': 'en-GB,en;q=0.9'
+                'Cache-Control': 'no-cache',
+                'Accept-Language': 'en-GB,en;q=0.9',
+                'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
             }
         self._foodStuffsHeaders["Authorization"] = self._getToken(superMarketType=superMarket)
         req = requests.get(url, headers=self._foodStuffsHeaders)
@@ -259,6 +271,7 @@ class Apis:
                         parsedItem[OutputJsonKeys.price.value] = {identifier: item[OutputJsonKeys.price.value]}
                         parseDict[key][name] = parsedItem
             print(f"done {count} out of {storeIdsSize}")
+            gc.collect()
             count += 1
         itemsDict = {}
         for key in parseDict.keys():
@@ -274,7 +287,7 @@ class Apis:
         facets = self._getFoodStuffsFacets(superMarket, storeId)
         fcs = []
         count = 0
-        threshold = 900
+        threshold = 500
         st = ""
         for facet in facets.keys():
             value = facets[facet]
@@ -296,7 +309,7 @@ class Apis:
         for facet in fcs:
             requestBody = '{' + f'"query":"","facets":["{FoodStuffsKeys.category1NI.value}",' \
                                 f'"onPromotion"],"attributesToHighlight":[],' \
-                                '"sortFacetValuesBy":"alpha","hitsPerPage":"1000","facetFilters":[' \
+                                '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
                                 f'"stores:{storeId}",' \
                                 f'[{facet}],' \
                                 f'["onPromotion:{storeId}"],"tobacco:false"]' \
@@ -313,10 +326,11 @@ class Apis:
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'NewWorldApp/4.4.0 (iOS 16.3.1)',
-                'Content-Length': '325',
+                'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
+                'Cache-Control': 'no-cache',
                 'Accept-Language': 'en-GB,en;q=0.9',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+            'Accept-Encoding': 'gzip, deflate, br'
             }
 
         if superMarketType == SuperMarketAbbreviation.packNSave:
@@ -324,10 +338,11 @@ class Apis:
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
                 'Connection': 'keep-alive',
                 'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'PackNSaveApp/4.4.0 (iOS 16.3.1)',
-                'Content-Length': '325',
+                'User-Agent': 'PackNSaveApp/4.5.0 (iOS 16.3.1)',
+                'Cache-Control': 'no-cache',
                 'Accept-Language': 'en-GB,en;q=0.9',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept-Encoding': 'gzip, deflate, br'
             }
 
         try:
@@ -435,7 +450,11 @@ class Apis:
         return size
 
     def _writeFoodStuffsResponse(self, itemsDict, jsonResponse: {str: typing.Any}, storeId: str):
-        items = jsonResponse[FoodStuffsKeys.products.value]
+        try:
+            items = jsonResponse[FoodStuffsKeys.products.value]
+        except:
+            print(jsonResponse)
+            return
         storeId = storeId.replace("-", "")
         for item in items:
             price = 1

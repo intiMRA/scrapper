@@ -143,18 +143,18 @@ def sortingKey(item) -> str:
     names = []
     for nameString in item[ConcatcKeys.countdownItemNames.value]:
         for name in nameString.split("@"):
-            names.append(name.split(" ")[0])
+            names.append(name)
 
     for nameKey in item[ConcatcKeys.packNSaveItemNames.value].keys():
         for nameString in item[ConcatcKeys.packNSaveItemNames.value][nameKey]:
             for name in nameString.split("@"):
-                names.append(name.split(" ")[0])
+                names.append(name)
         break
 
     for nameKey in item[ConcatcKeys.newWorldItemNames.value].keys():
         for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
             for name in nameString.split("@"):
-                names.append(name.split(" ")[0])
+                names.append(name)
     names = sorted(names)
     return names[0]
 
@@ -373,8 +373,8 @@ def clusterData():
     packNSaveFile.close()
 
 
-dropTables()
-createTables()
-clusterData()
-
+# dropTables()
+# createTables()
+# clusterData()
+fetchData()
 # Apis().fetchCountdownItems()
