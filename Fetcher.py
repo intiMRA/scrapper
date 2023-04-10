@@ -155,6 +155,7 @@ def sortingKey(item) -> str:
         for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
             for name in nameString.split("@"):
                 names.append(name)
+        break
     names = sorted(names)
     return names[0]
 
