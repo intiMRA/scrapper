@@ -373,8 +373,8 @@ def clusterData():
     packNSaveFile.close()
 
 
-# dropTables()
-# createTables()
-# clusterData()
-fetchData()
+dropTables()
+createTables()
+clusterData()
+# fetchData()
 # Apis().fetchCountdownItems()

@@ -20,7 +20,7 @@ def fetchPage(page):
     for item in items:
         itemIds.append(item[0])
     # countDown = db.fetchCountdownItems(itemIds)
-    nwItems = db.fetchFoodStuffsItems(itemIds, "55d4fe03-e82e-44a8-8324-57f3afcf16ba", Tables.newWorld)
+    nwItems = db.fetchFoodStuffsItems(itemIds, "5b8f8e3b-e1a0-4a11-b16b-9cfe782c124e", Tables.newWorld)
     db.closeConnection()
     output = _parseSuperMarketItemsToDict(nwItems, False)
     return output

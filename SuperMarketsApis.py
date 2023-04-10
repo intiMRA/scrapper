@@ -322,6 +322,7 @@ class Apis:
             retries = Retry(total=5, backoff_factor=0.1, status_forcelist=[400])
             s.mount('https://', HTTPAdapter(max_retries=retries))
             response = s.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
         return itemsDict
