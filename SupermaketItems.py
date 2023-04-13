@@ -1,5 +1,5 @@
 from Database import Database
-from Database import ItemsTableKeys, SupermarketTableKeys, Tables
+from Database import ItemsTableKeys, SupermarketTableKeys, ItemTables
 import json
 
 
@@ -20,10 +20,11 @@ def fetchPage(page):
     for item in items:
         itemIds.append(item[0])
     # countDown = db.fetchCountdownItems(itemIds)
-    nwItems = db.fetchFoodStuffsItems(itemIds, "5b8f8e3b-e1a0-4a11-b16b-9cfe782c124e", Tables.newWorld)
+    nwItems = db.fetchFoodStuffsItems(itemIds, "5b8f8e3b-e1a0-4a11-b16b-9cfe782c124e", ItemTables.newWorld)
     db.closeConnection()
     output = _parseSuperMarketItemsToDict(nwItems, False)
     return output
+
 
 def _parseItemsToDict(items) -> list:
     output = []
@@ -52,6 +53,7 @@ def _parseSuperMarketItemsToDict(items, isCountdown) -> list:
             outPutItem[key.value] = item[index].split("@")
         output.append(outPutItem)
     return output
+
 
 def fetchCategories(categories: str):
     db = Database()

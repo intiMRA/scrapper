@@ -6,8 +6,9 @@ from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 from SuperMarketsApis import OutputJsonKeys
 from fuzzywuzzy import fuzz
-from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys, Tables
+from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys, ItemTables
 from uuid import uuid1
+import re
 
 
 class SupportedStores(Enum):
@@ -131,10 +132,10 @@ def writeItemsToDB(items):
     out.close()
     db.startConnection()
 
-    db.insertItems(values, Tables.items)
-    db.insertItems(cdValues, Tables.countdown)
-    db.insertItems(psValues, Tables.pakNSave)
-    db.insertItems(nwValues, Tables.newWorld)
+    db.insertItems(values, ItemTables.items)
+    db.insertItems(cdValues, ItemTables.countdown)
+    db.insertItems(psValues, ItemTables.pakNSave)
+    db.insertItems(nwValues, ItemTables.newWorld)
 
     db.closeConnection()
 
@@ -143,17 +144,26 @@ def sortingKey(item) -> str:
     names = []
     for nameString in item[ConcatcKeys.countdownItemNames.value]:
         for name in nameString.split("@"):
+            numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
+            for number in numbers:
+                name = name.replace(number, "")
             names.append(name)
 
     for nameKey in item[ConcatcKeys.packNSaveItemNames.value].keys():
         for nameString in item[ConcatcKeys.packNSaveItemNames.value][nameKey]:
             for name in nameString.split("@"):
+                numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
+                for number in numbers:
+                    name = name.replace(number, "")
                 names.append(name)
         break
 
     for nameKey in item[ConcatcKeys.newWorldItemNames.value].keys():
         for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
             for name in nameString.split("@"):
+                numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
+                for number in numbers:
+                    name = name.replace(number, "")
                 names.append(name)
         break
     names = sorted(names)
@@ -374,8 +384,8 @@ def clusterData():
     packNSaveFile.close()
 
 
-dropTables()
-createTables()
-clusterData()
+# dropTables()
+# createTables()
+# clusterData()
 # fetchData()
 # Apis().fetchCountdownItems()

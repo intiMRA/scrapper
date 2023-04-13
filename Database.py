@@ -8,11 +8,24 @@ dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
 
 
-class Tables(Enum):
+class ItemTables(Enum):
     items = "items"
     countdown = "countdown"
     newWorld = "newWorld"
     pakNSave = "pakNSave"
+
+
+class StoreTables(Enum):
+    newWorldStores = "newWorldStores"
+    pakNSaveStores = "pakNSaveStores"
+
+
+class StoreTablesKeys(Enum):
+    supermarketId = "id"
+    name = "name"
+    address = "address"
+    latitude = "latitude"
+    longitude = "longitude"
 
 
 class ItemsTableKeys(Enum):
@@ -55,16 +68,26 @@ class Database:
     _connection = None
     _cursor = None
 
-    def insertItems(self, values: [str], table: Tables):
+    def insertStores(self, values: list, table: StoreTables):
         itemKeys = ""
-        if table == Tables.items:
+        for v in StoreTablesKeys:
+            itemKeys += v.value + " ,"
+        itemKeys = itemKeys[:-1]
+        sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({'%s,' * len(values[0])}"
+        sql = sql[:-1] + ")"
+        self._cursor.executemany(sql, values)
+        self._connection.commit()
+
+    def insertItems(self, values: [str], table: ItemTables):
+        itemKeys = ""
+        if table == ItemTables.items:
             for v in ItemsTableKeys:
                 itemKeys += v.value + " ,"
             itemKeys = itemKeys[:-1]
         else:
             itemKeys = ""
             for v in SupermarketTableKeys:
-                if v == SupermarketTableKeys.supermarketId and table == Tables.countdown:
+                if v == SupermarketTableKeys.supermarketId and table == ItemTables.countdown:
                     continue
                 itemKeys += v.value + " ,"
             itemKeys = itemKeys[:-2]
@@ -84,37 +107,50 @@ class Database:
         # foodStuffs
         # itemId, supermarketId, name, size, price, url
 
+        # supermarketStores
+        # id, name, address, latitude, longitude
+
         itemKeys = ""
         for v in ItemsTableKeys:
             itemKeys += v.value + " MEDIUMTEXT,"
         itemKeys = itemKeys[:-1]
-        self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {Tables.items.value} ({itemKeys})")
-        for table in Tables:
-            if table == Tables.items:
+        self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {ItemTables.items.value} ({itemKeys})")
+        for table in ItemTables:
+            if table == ItemTables.items:
                 continue
             itemKeys = ""
             for v in SupermarketTableKeys:
-                if v == SupermarketTableKeys.supermarketId and table == Tables.countdown:
+                if v == SupermarketTableKeys.supermarketId and table == ItemTables.countdown:
                     continue
                 itemKeys += v.value + " LONGTEXT,"
             itemKeys = itemKeys[:-1]
             self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {table.value} ({itemKeys})")
 
+        for storeTable in StoreTables:
+            storeKeys = ""
+            for key in StoreTablesKeys:
+                storeKeys += key.value + " MEDIUMTEXT,"
+            storeKeys = storeKeys[:-1]
+            self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {storeTable.value} ({storeKeys})")
+
     def dropTables(self):
-        for table in Tables:
-            self._cursor.execute(f"DROP TABLE {table.name}")
+        for table in ItemTables:
+            self._cursor.execute(f"DROP TABLE {table.value}")
+
+        for table in StoreTables:
+            self._cursor.execute(f"DROP TABLE {table.value}")
 
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
         for table in self._cursor:
             print(table)
 
-    def fetchAllItems(self, table: Tables):
+    def fetchAllItems(self, table: Enum):
         self._cursor.execute(f"SELECT * FROM {table.value}")
         return self._cursor.fetchall()
 
     def fetchPage(self, page):
-        self._cursor.execute(f"SELECT * FROM {Tables.items.value} WHERE {ItemsTableKeys.page.value} = {page}")
+        self._cursor.execute(f"SELECT * FROM {ItemTables.items.value} WHERE {ItemsTableKeys.page.value} = {page}")
         return self._cursor.fetchall()
 
     def fetchCountdownItems(self, itemIds):
@@ -122,12 +158,12 @@ class Database:
         for itemId in itemIds:
             query += f'"{itemId}",'
         query = query[:-1]
-        sql = f"SELECT * FROM {Tables.countdown.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query})"
+        sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query})"
         print(sql)
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def fetchFoodStuffsItems(self, itemIds, supermarketId, table: Tables):
+    def fetchFoodStuffsItems(self, itemIds, supermarketId, table: ItemTables):
         query = ''
         for itemId in itemIds:
             query += f'"{itemId}",'
@@ -137,12 +173,13 @@ class Database:
         print(sql)
         self._cursor.execute(sql)
         return self._cursor.fetchall()
+
     def fetchItemsByCategory(self, categories):
         query = ''
         for category in categories:
             query += f"{ConcatcKeys.category.value} like '%{category}%' OR "
         query = query[:-4]
-        fullQuery = f"SELECT * FROM {Tables.items.value} WHERE {query}"
+        fullQuery = f"SELECT * FROM {ItemTables.items.value} WHERE {query}"
         print(fullQuery)
         self._cursor.execute(fullQuery)
         return self._cursor.fetchall()
