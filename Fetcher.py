@@ -59,7 +59,7 @@ def writeItemsToDB(items):
 
     for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
         itemId = str(uuid1())
-        itemValues = [itemId, item[ItemsTableKeys.brand.value], item[ItemsTableKeys.category.value], f'{page}']
+        itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value], f'{page}']
         if item[ConcatcKeys.countdownItemNames.value]:
             cdItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
@@ -125,10 +125,10 @@ def writeItemsToDB(items):
             psValues.append(psItem)
 
         if item[0] in cdItemsDict.keys() and item[0] in nwItemsDict.keys() and item[0] in psItemsDict.keys():
-            out.write(str(cdItemsDict[item[0]]["name"])+"\n")
-            out.write(str(nwItemsDict[item[0]]["name"])+"\n")
-            out.write(str(psItemsDict[item[0]]["name"])+"\n")
-            out.write("-"*100+"\n")
+            out.write(str(cdItemsDict[item[0]]["name"]) + "\n")
+            out.write(str(nwItemsDict[item[0]]["name"]) + "\n")
+            out.write(str(psItemsDict[item[0]]["name"]) + "\n")
+            out.write("-" * 100 + "\n")
     out.close()
     db.startConnection()
 
@@ -208,8 +208,8 @@ def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: S
         sizes = items[itemName][ConcatcKeys.newWorldSizes.value]
         for key in names.keys():
             for index in range(0, len(names[key])):
-                if names[key][index] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key][
-                    index]:
+                if names[key][index] == dictionary[OutputJsonKeys.name.value] and \
+                        dictionary["size"] == sizes[key][index]:
                     return
 
         prices = items[itemName][ConcatcKeys.newWorldPrices.value]
@@ -220,8 +220,8 @@ def _populateItem(items, dictionary, itemName, itemExists, brand, supermarket: S
         sizes = items[itemName][ConcatcKeys.packNSaveSizes.value]
         for key in names.keys():
             for index in range(0, len(names[key])):
-                if names[key][index] == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[key][
-                    index]:
+                if names[key][index] == dictionary[OutputJsonKeys.name.value] and \
+                        dictionary["size"] == sizes[key][index]:
                     return
 
         prices = items[itemName][ConcatcKeys.packNSavePrices.value]
@@ -383,9 +383,8 @@ def clusterData():
     newWorldFile.close()
     packNSaveFile.close()
 
-
-# dropTables()
-# createTables()
-# clusterData()
+dropTables()
+createTables()
+clusterData()
 # fetchData()
 # Apis().fetchCountdownItems()
