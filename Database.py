@@ -27,6 +27,12 @@ class StoreTablesKeys(Enum):
     latitude = "latitude"
     longitude = "longitude"
 
+class StoreTablesIndexes(Enum):
+    supermarketId = 0
+    name = 1
+    address = 2
+    latitude = 3
+    longitude = 4
 
 class ItemsTableKeys(Enum):
     itemId = "itemId"

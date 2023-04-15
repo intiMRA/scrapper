@@ -1,15 +1,31 @@
 from Database import Database
-from Database import ItemsTableKeys, SupermarketTableKeys, ItemTables
-import json
-
-
-def fetchAll():
+from Database import ItemsTableKeys, SupermarketTableKeys, ItemTables, StoreTables, StoreTablesKeys, StoreTablesIndexes
+from geopy import distance
+def fetchStores(lat: str, long: str, radius: str):
+    radius = float(radius)
+    location = (float(lat), float(long))
     db = Database()
     db.startConnection()
-    items = db.fetchAllItems()
-    db.closeConnection()
-    output = _parseItemsToDict(items)
-    return output
+    newWorldStores = db.fetchAllItems(StoreTables.newWorldStores)
+    packNSaveStores = db.fetchAllItems(StoreTables.pakNSaveStores)
+    nwStoresClose = []
+    psStoresClose = []
+    for nwStore in newWorldStores:
+        nwLat = float(nwStore[StoreTablesIndexes.latitude.value])
+        nwLong = float(nwStore[StoreTablesIndexes.longitude.value])
+        storeLocation = (nwLat, nwLong)
+        print(distance.geodesic(location, storeLocation).km)
+        if distance.geodesic(location, storeLocation).km <= radius:
+            nwStoresClose.append(nwStore)
+
+    for psStore in packNSaveStores:
+        nwLat = float(psStore[StoreTablesIndexes.latitude.value])
+        nwLong = float(psStore[StoreTablesIndexes.longitude.value])
+        storeLocation = (nwLat, nwLong)
+        if distance.geodesic(location, storeLocation).km <= radius:
+            psStoresClose.append(psStore)
+
+    return _parseStores(nwStoresClose, psStoresClose)
 
 
 def fetchPage(page):
@@ -23,6 +39,25 @@ def fetchPage(page):
     nwItems = db.fetchFoodStuffsItems(itemIds, "5b8f8e3b-e1a0-4a11-b16b-9cfe782c124e", ItemTables.newWorld)
     db.closeConnection()
     output = _parseSuperMarketItemsToDict(nwItems, False)
+    return output
+
+
+def _parseStores(newWorldStores, packNSaveStores) -> dict:
+    output = {
+        StoreTables.newWorldStores.value: [],
+        StoreTables.pakNSaveStores.value: []
+    }
+    for nwStore in newWorldStores:
+        store = {}
+        for index, key in zip(StoreTablesIndexes, StoreTablesKeys):
+            store[key.value] = nwStore[index.value]
+        output[StoreTables.newWorldStores.value].append(store)
+
+    for psStore in packNSaveStores:
+        store = {}
+        for index, key in zip(StoreTablesIndexes, StoreTablesKeys):
+            store[key.value] = psStore[index.value]
+        output[StoreTables.pakNSaveStores.value].append(store)
     return output
 
 
