@@ -1,5 +1,3 @@
-import time
-
 import requests
 from requests.adapters import Retry, HTTPAdapter
 import json
@@ -11,6 +9,7 @@ import finalCategories
 import typing
 import re
 import gc
+from Database import Database, StoreTablesKeys, StoreTables
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -238,8 +237,21 @@ class Apis:
             }
         self._foodStuffsHeaders["Authorization"] = self._getToken(superMarketType=superMarket)
         req = requests.get(url, headers=self._foodStuffsHeaders)
-
         stores = json.loads(req.text)["stores"]
+        table = StoreTables.newWorldStores
+        if superMarket == SuperMarketAbbreviation.packNSave:
+            table = StoreTables.pakNSaveStores
+        db = Database()
+        values = []
+        for store in stores:
+            item = []
+            for value in StoreTablesKeys:
+                item.append(store[value.value])
+            values.append(item)
+        db.startConnection()
+        db.insertStores(values, table)
+        db.closeConnection()
+        return
         storeIds = []
         for store in stores:
             storeIds.append(store["id"])
@@ -328,15 +340,16 @@ class Apis:
         return itemsDict
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         headers = {
-                'Host': 'api-prod.prod.fsniwaikato.kiwi',
-                'Connection': 'keep-alive',
-                'Accept': 'application/json, text/plain, */*',
-                'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
-                'Cache-Control': 'no-cache',
-                'Accept-Language': 'en-GB,en;q=0.9',
-                'Content-Type': 'application/json',
+            'Host': 'api-prod.prod.fsniwaikato.kiwi',
+            'Connection': 'keep-alive',
+            'Accept': 'application/json, text/plain, */*',
+            'User-Agent': 'NewWorldApp/4.5.0 (iOS 16.3.1)',
+            'Cache-Control': 'no-cache',
+            'Accept-Language': 'en-GB,en;q=0.9',
+            'Content-Type': 'application/json',
+            'Content-Length': '325',
             'Accept-Encoding': 'gzip, deflate, br'
-            }
+        }
 
         if superMarketType == SuperMarketAbbreviation.packNSave:
             headers = {
@@ -347,6 +360,7 @@ class Apis:
                 'Cache-Control': 'no-cache',
                 'Accept-Language': 'en-GB,en;q=0.9',
                 'Content-Type': 'application/json',
+                'Content-Length': '325',
                 'Accept-Encoding': 'gzip, deflate, br'
             }
 
@@ -403,9 +417,6 @@ class Apis:
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
                 name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "")
-                numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
-                for number in numbers:
-                    name = name.replace(number, "")
                 size = self._parseSize(item[OutputJsonKeys.size.value])
                 if size not in siz:
                     siz.append(size)
