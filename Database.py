@@ -3,6 +3,7 @@ import os
 import MySQLdb
 from pathlib import Path
 from enum import Enum
+import difflib
 
 dotenv_path = Path('./venv/.env')
 load_dotenv(dotenv_path=dotenv_path)
@@ -27,6 +28,7 @@ class StoreTablesKeys(Enum):
     latitude = "latitude"
     longitude = "longitude"
 
+
 class StoreTablesIndexes(Enum):
     supermarketId = 0
     name = 1
@@ -34,11 +36,19 @@ class StoreTablesIndexes(Enum):
     latitude = 3
     longitude = 4
 
+
 class ItemsTableKeys(Enum):
     itemId = "itemId"
     category = "category"
     brand = "brand"
     page = "page"
+
+
+class ItemsTableKeysIndexes(Enum):
+    itemId = 0
+    category = 1
+    brand = 2
+    page = 3
 
 
 class SupermarketTableKeys(Enum):
@@ -48,6 +58,15 @@ class SupermarketTableKeys(Enum):
     size = "size"
     photoUrl = "photoUrl"
     supermarketId = "supermarketId"
+
+
+class SupermarketTableIndexes(Enum):
+    itemId = 0
+    name = 1
+    price = 2
+    size = 3
+    photoUrl = 4
+    supermarketId = 5
 
 
 class ConcatcKeys(Enum):
@@ -156,27 +175,118 @@ class Database:
         return self._cursor.fetchall()
 
     def fetchPage(self, page):
-        self._cursor.execute(f"SELECT * FROM {ItemTables.items.value} WHERE {ItemsTableKeys.page.value} = {page}")
+        self._cursor.execute(f"SELECT * FROM {ItemTables.items.value} "
+                             f"WHERE {ItemsTableKeys.page.value} = {page}")
         return self._cursor.fetchall()
+
+    def fetchItemsById(self, itemIds):
+        query = ''
+        for itemId in itemIds:
+            query += f'"{itemId}",'
+        query = query[:-1]
+
+        self._cursor.execute(f"SELECT * FROM {ItemTables.items.value} "
+                             f"WHERE {ItemsTableKeys.itemId.value} IN ({query})")
+        return self._cursor.fetchall()
+
+    def fetchItemsByName(self, query, newWorldIds: [str], packNSaveIds: [str]):
+        nwStoreIdsQuery = ''
+        for storeId in newWorldIds:
+            nwStoreIdsQuery += f'"{storeId}",'
+        nwStoreIdsQuery = nwStoreIdsQuery[:-1]
+
+        psStoreIdsQuery = ''
+        for storeId in packNSaveIds:
+            psStoreIdsQuery += f'"{storeId}",'
+        psStoreIdsQuery = psStoreIdsQuery[:-1]
+
+        self._cursor.execute(f"SELECT * FROM {ItemTables.countdown.value} "
+                             f"WHERE {SupermarketTableKeys.name.value} "
+                             f"like '%{query}%'")
+
+        countdownItems = sorted(self._cursor.fetchall(),
+                                key=lambda item: difflib.SequenceMatcher(
+                                    None,
+                                    item[SupermarketTableIndexes.name.value],
+                                    query).ratio(),
+                                reverse=True)
+
+        self._cursor.execute(f"SELECT * FROM {ItemTables.newWorld.value} "
+                             f"WHERE {SupermarketTableKeys.name.value} "
+                             f"like '%{query}%' "
+                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({nwStoreIdsQuery})")
+
+        newWorldItems = sorted(self._cursor.fetchall(),
+                               key=lambda item: difflib.SequenceMatcher(
+                                   None,
+                                   item[SupermarketTableIndexes.name.value],
+                                   query).ratio(),
+                               reverse=True)
+
+        self._cursor.execute(f"SELECT * FROM {ItemTables.pakNSave.value} "
+                             f"WHERE {SupermarketTableKeys.name.value} "
+                             f"like '%{query}%' "
+                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({psStoreIdsQuery})")
+
+        packNSaveItems = sorted(self._cursor.fetchall(),
+                                key=lambda item: difflib.SequenceMatcher(
+                                    None,
+                                    item[SupermarketTableIndexes.name.value],
+                                    query).ratio(),
+                                reverse=True)
+
+        itemIds = []
+        for countdownItem in countdownItems:
+            itemIds.append(countdownItem[SupermarketTableIndexes.itemId.value])
+
+        for packNSaveItem in packNSaveItems:
+            itemId = packNSaveItem[SupermarketTableIndexes.itemId.value]
+            if itemId not in itemIds:
+                itemIds.append(itemId)
+
+        for newWorldItem in newWorldItems:
+            itemId = newWorldItem[SupermarketTableIndexes.itemId.value]
+            if itemId not in itemIds:
+                itemIds.append(itemId)
+
+        items = self.fetchItemsById(itemIds)
+        itemsDict = {}
+        for item in items:
+            itemsDict[item[ItemsTableKeysIndexes.itemId.value]] = item
+
+        return {
+            ItemTables.countdown.value: countdownItems,
+            ItemTables.newWorld.value: newWorldItems,
+            ItemTables.pakNSave.value: packNSaveItems,
+            ItemTables.items.value: itemsDict
+        }
 
     def fetchCountdownItems(self, itemIds):
         query = ''
         for itemId in itemIds:
             query += f'"{itemId}",'
         query = query[:-1]
-        sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query})"
+        sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
+              f" {SupermarketTableKeys.itemId.value} IN" \
+              f" ({query})"
         print(sql)
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def fetchFoodStuffsItems(self, itemIds, supermarketId, table: ItemTables):
-        query = ''
+    def fetchFoodStuffsItems(self, itemIds, storeIds, table: ItemTables):
+        itemIdsQuery = ''
         for itemId in itemIds:
-            query += f'"{itemId}",'
-        query = query[:-1]
-        sql = f"SELECT * FROM {table.value} WHERE {SupermarketTableKeys.itemId.value} IN ({query}) " \
-              f"AND {SupermarketTableKeys.supermarketId.value} like '%{supermarketId}%'"
-        print(sql)
+            itemIdsQuery += f'"{itemId}",'
+        itemIdsQuery = itemIdsQuery[:-1]
+
+        storeIdsQuery = ''
+        for storeId in storeIds:
+            storeIdsQuery += f'"{storeId}",'
+        storeIdsQuery = storeIdsQuery[:-1]
+
+        sql = f"SELECT * FROM {table.value} " \
+              f"WHERE {SupermarketTableKeys.itemId.value} IN ({itemIdsQuery}) " \
+              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery})"
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
@@ -185,7 +295,8 @@ class Database:
         for category in categories:
             query += f"{ConcatcKeys.category.value} like '%{category}%' OR "
         query = query[:-4]
-        fullQuery = f"SELECT * FROM {ItemTables.items.value} WHERE {query}"
+        fullQuery = f"SELECT * FROM {ItemTables.items.value} " \
+                    f"WHERE {query}"
         print(fullQuery)
         self._cursor.execute(fullQuery)
         return self._cursor.fetchall()
