@@ -1,6 +1,7 @@
 from flask import Flask, request
 import SupermaketItems
 from enum import Enum
+from waitress import serve
 
 app = Flask(__name__)
 
@@ -52,4 +53,4 @@ def getStores():
 
 
 if __name__ == '__main__':
-    app.run()  # run our Flask app
+    serve(app, host="0.0.0.0", port=8080)
