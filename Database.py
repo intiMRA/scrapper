@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-import MySQLdb
+import mysql.connector
 from pathlib import Path
 from enum import Enum
 import difflib
@@ -313,15 +313,12 @@ class Database:
         self.closeConnection()
 
     def startConnection(self):
-        self._connection = MySQLdb.connect(
+        self._connection = mysql.connector.connect(
             host=os.getenv("HOST"),
             user=os.getenv("USERNAME"),
             passwd=os.getenv("PASSWORD"),
             db=os.getenv("DATABASE"),
-            ssl_mode="VERIFY_IDENTITY",
-            ssl={
-                "ca": "/etc/ssl/cert.pem"
-            }
+            use_pure=True
         )
         self._cursor = self._connection.cursor()
 
