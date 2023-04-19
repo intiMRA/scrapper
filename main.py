@@ -21,7 +21,7 @@ def getPage(page):
     args = request.args.to_dict()
     newWorldIds = args[ParameterKeys.newWorldIds.value].split(",")
     packNSaveIds = args[ParameterKeys.packNSaveIds.value].split(",")
-    return {'items': SupermaketItems.fetchPage(page, newWorldIds, packNSaveIds)}
+    return SupermaketItems.fetchPage(page, newWorldIds, packNSaveIds)
 
 
 @app.get('/items/search')
