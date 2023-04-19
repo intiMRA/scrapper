@@ -92,7 +92,7 @@ def fetchPage(page, newWorldIds, packNSaveIds):
         outPutItemArray.append(item)
     db.closeConnection()
 
-    return outPutItemArray
+    return { "items": outPutItemArray }
 
 def sortingKey(item) -> str:
     nameString = item[ItemsTableKeys.itemId.value]
