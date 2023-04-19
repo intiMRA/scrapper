@@ -1,8 +1,8 @@
 from Database import Database
-from Database import ItemsTableKeys, SupermarketTableKeys, ItemTables, \
+from Database import ItemsTableKeys, SupermarketTableKeys, SupermarketTableIndexes, ItemTables, \
     StoreTables, StoreTablesKeys, StoreTablesIndexes, ItemsTableKeysIndexes
 from geopy import distance
-
+import re
 
 def fetchStores(lat: str, long: str, radius: str):
     radius = float(radius)
@@ -59,12 +59,50 @@ def fetchPage(page, newWorldIds, packNSaveIds):
     countDown = db.fetchCountdownItems(itemIds)
     nwItems = db.fetchFoodStuffsItems(itemIds, newWorldIds, ItemTables.newWorld)
     psItems = db.fetchFoodStuffsItems(itemIds, packNSaveIds, ItemTables.pakNSave)
+    itemsDictionary = {}
+
+    for countDownItem in countDown:
+        itemId = countDownItem[SupermarketTableIndexes.itemId.value]
+        outPutItem = _parseSuperMarketSingleItemToDict(countDownItem, itemsDict, True)
+        outPutItem["supermarket"] = ItemTables.countdown.value
+        itemsDictionary[itemId] = [outPutItem]
+
+    for newWorldItem in nwItems:
+        itemId = newWorldItem[SupermarketTableIndexes.itemId.value]
+        outPutItem = _parseSuperMarketSingleItemToDict(newWorldItem, itemsDict, False)
+        outPutItem["supermarket"] = ItemTables.newWorld.value
+
+        if itemId in itemsDictionary.keys():
+            itemsDictionary[itemId].append(outPutItem)
+        else:
+            itemsDictionary[itemId] = [outPutItem]
+
+    for packNSaveItem in psItems:
+        itemId = packNSaveItem[SupermarketTableIndexes.itemId.value]
+        outPutItem = _parseSuperMarketSingleItemToDict(packNSaveItem, itemsDict, False)
+        outPutItem["supermarket"] = ItemTables.pakNSave.value
+
+        if itemId in itemsDictionary.keys():
+            itemsDictionary[itemId].append(outPutItem)
+        else:
+            itemsDictionary[itemId] = [outPutItem]
+
+    outPutItemArray = []
+    for item in sorted(itemsDictionary.values(), key=lambda x: sortingKey(x[0])):
+        outPutItemArray.append(item)
     db.closeConnection()
-    return {
-        ItemTables.newWorld.value: _parseSuperMarketItemsToDict(nwItems, itemsDict, False),
-        ItemTables.pakNSave.value: _parseSuperMarketItemsToDict(psItems, itemsDict, False),
-        ItemTables.countdown.value: _parseSuperMarketItemsToDict(countDown, itemsDict, True)
-    }
+
+    return { "items": outPutItemArray }
+
+def sortingKey(item) -> str:
+    nameString = item[ItemsTableKeys.itemId.value]
+    names = []
+    for name in nameString.split("@"):
+        numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
+        for number in numbers:
+            name = name.replace(number, "")
+        names.append(name)
+    return name[0]
 
 
 def _parseStores(newWorldStores, packNSaveStores) -> dict:
@@ -98,6 +136,23 @@ def _parseItemsToDict(items) -> list:
         output.append(outPutItem)
     return output
 
+
+def _parseSuperMarketSingleItemToDict(supermarketItem, items, isCountdown) -> dict:
+    outPutItem = {}
+    for index, key in enumerate(SupermarketTableKeys):
+        if isCountdown and key == SupermarketTableKeys.supermarketId:
+            continue
+        if SupermarketTableKeys.itemId == key:
+            outPutItem[key.value] = supermarketItem[index]
+            itemId = supermarketItem[index]
+            outPutItem[ItemsTableKeys.category.value] = items[itemId][ItemsTableKeysIndexes.category.value]
+            outPutItem[ItemsTableKeys.brand.value] = items[itemId][ItemsTableKeysIndexes.brand.value]
+            continue
+        if SupermarketTableKeys.supermarketId == key:
+            outPutItem[key.value] = supermarketItem[index]
+            continue
+        outPutItem[key.value] = supermarketItem[index].split("@")
+    return outPutItem
 
 def _parseSuperMarketItemsToDict(supermarketItems, items, isCountdown) -> list:
     output = []
