@@ -57,6 +57,7 @@ class SupermarketTableKeys(Enum):
     price = "price"
     size = "size"
     photoUrl = "photoUrl"
+    page = "page"
     supermarketId = "supermarketId"
 
 
@@ -66,7 +67,8 @@ class SupermarketTableIndexes(Enum):
     price = 2
     size = 3
     photoUrl = 4
-    supermarketId = 5
+    page = 5
+    supermarketId = 6
 
 
 class ConcatcKeys(Enum):
@@ -162,8 +164,8 @@ class Database:
         for table in ItemTables:
             self._cursor.execute(f"DROP TABLE {table.value}")
 
-        for table in StoreTables:
-            self._cursor.execute(f"DROP TABLE {table.value}")
+        # for table in StoreTables:
+        #     self._cursor.execute(f"DROP TABLE {table.value}")
 
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
@@ -184,9 +186,9 @@ class Database:
         for itemId in itemIds:
             query += f'"{itemId}",'
         query = query[:-1]
-
-        self._cursor.execute(f"SELECT * FROM {ItemTables.items.value} "
-                             f"WHERE {ItemsTableKeys.itemId.value} IN ({query})")
+        sql = f"SELECT * FROM {ItemTables.items.value} " \
+              f"WHERE {ItemsTableKeys.itemId.value} IN ({query})"
+        self._cursor.execute(sql)
         return self._cursor.fetchall()
 
     def fetchItemsByName(self, query, newWorldIds: [str], packNSaveIds: [str]):
@@ -261,7 +263,7 @@ class Database:
             ItemTables.items.value: itemsDict
         }
 
-    def fetchCountdownItems(self, itemIds):
+    def fetchCountdownItemsByIds(self, itemIds):
         query = ''
         for itemId in itemIds:
             query += f'"{itemId}",'
@@ -269,11 +271,16 @@ class Database:
         sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
               f" {SupermarketTableKeys.itemId.value} IN" \
               f" ({query})"
-        print(sql)
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def fetchFoodStuffsItems(self, itemIds, storeIds, table: ItemTables):
+    def fetchCountdownItemsByPage(self, page: str):
+        sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
+              f" {SupermarketTableKeys.page.value} = {page}"
+        self._cursor.execute(sql)
+        return self._cursor.fetchall()
+
+    def fetchFoodStuffsItemsIds(self, itemIds, storeIds, table: ItemTables):
         itemIdsQuery = ''
         for itemId in itemIds:
             itemIdsQuery += f'"{itemId}",'
@@ -290,6 +297,18 @@ class Database:
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
+    def fetchFoodStuffsItemsByPage(self, page: str, storeIds, table: ItemTables):
+        storeIdsQuery = ''
+        for storeId in storeIds:
+            storeIdsQuery += f'"{storeId}",'
+        storeIdsQuery = storeIdsQuery[:-1]
+
+        sql = f"SELECT * FROM {table.value} " \
+              f"WHERE {SupermarketTableKeys.page.value} = {page} " \
+              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery})"
+        self._cursor.execute(sql)
+        return self._cursor.fetchall()
+
     def fetchItemsByCategory(self, categories):
         query = ''
         for category in categories:
@@ -297,7 +316,6 @@ class Database:
         query = query[:-4]
         fullQuery = f"SELECT * FROM {ItemTables.items.value} " \
                     f"WHERE {query}"
-        print(fullQuery)
         self._cursor.execute(fullQuery)
         return self._cursor.fetchall()
 

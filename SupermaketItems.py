@@ -51,15 +51,32 @@ def fetchItems(query, newWorldIds, packNSaveIds):
 def fetchPage(page, newWorldIds, packNSaveIds):
     db = Database()
     db.startConnection()
-    items = db.fetchPage(page)
+    countDown = db.fetchCountdownItemsByPage(page)
+    nwItems = db.fetchFoodStuffsItemsByPage(page, newWorldIds, ItemTables.newWorld)
+    psItems = db.fetchFoodStuffsItemsByPage(page, packNSaveIds, ItemTables.pakNSave)
+
+    concatIds = []
+    for countDownItem in countDown:
+        concatIds.append(countDownItem[SupermarketTableIndexes.itemId.value])
+
+    for newWorldItem in nwItems:
+        itemId = newWorldItem[SupermarketTableIndexes.itemId.value]
+        if itemId not in concatIds:
+            concatIds.append(itemId)
+
+    for packNSaveItem in psItems:
+        itemId = packNSaveItem[SupermarketTableIndexes.itemId.value]
+        if itemId not in concatIds:
+            concatIds.append(itemId)
+
+    items = db.fetchItemsById(concatIds)
+
     itemIds = []
     itemsDict = {}
     for item in items:
         itemsDict[item[ItemsTableKeysIndexes.itemId.value]] = item
         itemIds.append(item[ItemsTableKeysIndexes.itemId.value])
-    countDown = db.fetchCountdownItems(itemIds)
-    nwItems = db.fetchFoodStuffsItems(itemIds, newWorldIds, ItemTables.newWorld)
-    psItems = db.fetchFoodStuffsItems(itemIds, packNSaveIds, ItemTables.pakNSave)
+
     itemsDictionary = {}
 
     for countDownItem in countDown:
@@ -155,7 +172,7 @@ def _parseSuperMarketSingleItemToDict(supermarketItem, items, isCountdown) -> li
                 itemDict[ItemsTableKeys.category.value] = items[itemId][ItemsTableKeysIndexes.category.value]
                 itemDict[ItemsTableKeys.brand.value] = items[itemId][ItemsTableKeysIndexes.brand.value]
                 continue
-            if SupermarketTableKeys.supermarketId == key:
+            if SupermarketTableKeys.supermarketId == key or SupermarketTableKeys.page == key:
                 itemDict[key.value] = supermarketItem[index]
                 continue
             itemDict[key.value] = supermarketItem[index].split("@")[keyIndex]
