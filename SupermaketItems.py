@@ -54,7 +54,6 @@ def fetchPage(page, newWorldIds, packNSaveIds):
     countDown = db.fetchCountdownItemsByPage(page)
     nwItems = db.fetchFoodStuffsItemsByPage(page, newWorldIds, ItemTables.newWorld)
     psItems = db.fetchFoodStuffsItemsByPage(page, packNSaveIds, ItemTables.pakNSave)
-
     concatIds = []
     for countDownItem in countDown:
         concatIds.append(countDownItem[SupermarketTableIndexes.itemId.value])

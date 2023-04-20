@@ -51,7 +51,6 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 def writeItemsToDB(items):
     db = Database()
     itemsPerPage = 100
-    page = 1
     countdowPage = 1
     newWorldPages = {}
     packNSavePages = {}
@@ -65,10 +64,10 @@ def writeItemsToDB(items):
     nwItemsDict = {}
     cdItemsDict = {}
 
-# TODO: move page to items rather that ids
+    # TODO: move page to items rather that ids
     for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
         itemId = str(uuid1())
-        itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value], f'{page}']
+        itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
         if item[ConcatcKeys.countdownItemNames.value]:
             cdItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
@@ -99,7 +98,7 @@ def writeItemsToDB(items):
             }
             if nwId not in newWorldPageCounts.keys():
                 newWorldPageCounts[nwId] = 0
-            newWorldPageCounts[nwId] += 1
+            newWorldPageCounts[nwId] = newWorldPageCounts[nwId] + 1
 
         for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.packNSaveItemNames.value][psId])
@@ -120,25 +119,22 @@ def writeItemsToDB(items):
             }
             if psId not in packNSavePageCounts.keys():
                 packNSavePageCounts[psId] = 0
-            packNSavePageCounts[psId] += 1
+            packNSavePageCounts[psId] = packNSavePageCounts[psId] + 1
 
         values.append(itemValues)
-        if index > 0 and index % itemsPerPage == 0:
-            page += 1
 
         if countdowPageCount > 0 and countdowPageCount % itemsPerPage == 0:
             countdowPageCount = 0
             countdowPage += 1
 
-
         for nwId in newWorldPageCounts.keys():
             if newWorldPageCounts[nwId] > 0 and newWorldPageCounts[nwId] % itemsPerPage == 0:
-                newWorldPages[nwId] += 1
+                newWorldPages[nwId] = newWorldPages[nwId] + 1
                 newWorldPageCounts[nwId] = 0
 
         for psId in packNSavePageCounts.keys():
             if packNSavePageCounts[psId] > 0 and packNSavePageCounts[psId] % itemsPerPage == 0:
-                packNSavePages[psId] += 1
+                packNSavePages[psId] = packNSavePages[psId] + 1
                 packNSavePageCounts[psId] = 0
 
     cdValues = []
@@ -146,22 +142,28 @@ def writeItemsToDB(items):
     psValues = []
     out = open("out.txt", mode="w")
     for item in values:
-        if item[0] in cdItemsDict.keys():
+        itemId = item[0]
+        if itemId in cdItemsDict.keys():
             cdItem = []
-            for cv in cdItemsDict[item[0]].values():
-                cdItem.append(cv)
+            cdDictItem = cdItemsDict[itemId]
+            for key in SupermarketTableKeys:
+                if key == SupermarketTableKeys.supermarketId:
+                    continue
+                cdItem.append(cdDictItem[key.value])
             cdValues.append(cdItem)
 
-        if item[0] in nwItemsDict.keys():
+        if itemId in nwItemsDict.keys():
             nwItem = []
-            for nv in nwItemsDict[item[0]].values():
-                nwItem.append(nv)
+            nwDictItem = nwItemsDict[itemId]
+            for key in SupermarketTableKeys:
+                nwItem.append(nwDictItem[key.value])
             nwValues.append(nwItem)
 
-        if item[0] in psItemsDict.keys():
+        if itemId in psItemsDict.keys():
             psItem = []
-            for pv in psItemsDict[item[0]].values():
-                psItem.append(pv)
+            psDictItem = psItemsDict[itemId]
+            for key in SupermarketTableKeys:
+                psItem.append(psDictItem[key.value])
             psValues.append(psItem)
 
         if item[0] in cdItemsDict.keys() and item[0] in nwItemsDict.keys() and item[0] in psItemsDict.keys():
@@ -422,6 +424,7 @@ def clusterData():
     countdownFile.close()
     newWorldFile.close()
     packNSaveFile.close()
+
 
 dropTables()
 createTables()
