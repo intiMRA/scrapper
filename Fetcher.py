@@ -52,11 +52,20 @@ def writeItemsToDB(items):
     db = Database()
     itemsPerPage = 100
     page = 1
+    countdowPage = 1
+    newWorldPages = {}
+    packNSavePages = {}
+
+    countdowPageCount = 0
+    newWorldPageCounts = {}
+    packNSavePageCounts = {}
+
     values = []
     psItemsDict = {}
     nwItemsDict = {}
     cdItemsDict = {}
 
+# TODO: move page to items rather that ids
     for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
         itemId = str(uuid1())
         itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value], f'{page}']
@@ -66,40 +75,71 @@ def writeItemsToDB(items):
                 SupermarketTableKeys.name.value: parseItemToString(item[ConcatcKeys.countdownItemNames.value]),
                 SupermarketTableKeys.price.value: parseItemToString(item[ConcatcKeys.countdownPrices.value]),
                 SupermarketTableKeys.size.value: parseItemToString(item[ConcatcKeys.countdownSizes.value]),
-                SupermarketTableKeys.photoUrl.value: parseItemToString(item[ConcatcKeys.countdownphotoUrls.value])
+                SupermarketTableKeys.photoUrl.value: parseItemToString(item[ConcatcKeys.countdownphotoUrls.value]),
+                SupermarketTableKeys.page.value: f'{countdowPage}'
             }
+            countdowPageCount += 1
 
         for nwId in item[ConcatcKeys.newWorldItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.newWorldItemNames.value][nwId])
             price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
             size = parseItemToString(item[ConcatcKeys.newWorldSizes.value][nwId])
             url = parseItemToString(item[ConcatcKeys.newWorldphotoUrls.value][nwId])
+            if nwId not in newWorldPages:
+                newWorldPages[nwId] = 1
+            page = newWorldPages[nwId]
             nwItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
                 SupermarketTableKeys.photoUrl.value: url,
-                SupermarketTableKeys.supermarketId.value: nwId
+                SupermarketTableKeys.supermarketId.value: nwId,
+                SupermarketTableKeys.page.value: f'{page}'
             }
+            if nwId not in newWorldPageCounts.keys():
+                newWorldPageCounts[nwId] = 0
+            newWorldPageCounts[nwId] += 1
 
         for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.packNSaveItemNames.value][psId])
             price = parseItemToString(item[ConcatcKeys.packNSavePrices.value][psId])
             size = parseItemToString(item[ConcatcKeys.packNSaveSizes.value][psId])
             url = parseItemToString(item[ConcatcKeys.packNSavephotoUrls.value][psId])
+            if psId not in packNSavePages:
+                packNSavePages[psId] = 1
+            page = packNSavePages[psId]
             psItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
                 SupermarketTableKeys.photoUrl.value: url,
-                SupermarketTableKeys.supermarketId.value: psId
+                SupermarketTableKeys.supermarketId.value: psId,
+                SupermarketTableKeys.page.value: f'{page}'
             }
+            if psId not in packNSavePageCounts.keys():
+                packNSavePageCounts[psId] = 0
+            packNSavePageCounts[psId] += 1
 
         values.append(itemValues)
         if index > 0 and index % itemsPerPage == 0:
             page += 1
+
+        if countdowPageCount > 0 and countdowPageCount % itemsPerPage == 0:
+            countdowPageCount = 0
+            countdowPage += 1
+
+
+        for nwId in newWorldPageCounts.keys():
+            if newWorldPageCounts[nwId] > 0 and newWorldPageCounts[nwId] % itemsPerPage == 0:
+                newWorldPages[nwId] += 1
+                newWorldPageCounts[nwId] = 0
+
+        for psId in packNSavePageCounts.keys():
+            if packNSavePageCounts[psId] > 0 and packNSavePageCounts[psId] % itemsPerPage == 0:
+                packNSavePages[psId] += 1
+                packNSavePageCounts[psId] = 0
 
     cdValues = []
     nwValues = []
