@@ -41,14 +41,12 @@ class ItemsTableKeys(Enum):
     itemId = "itemId"
     category = "category"
     brand = "brand"
-    page = "page"
 
 
 class ItemsTableKeysIndexes(Enum):
     itemId = 0
     category = 1
     brand = 2
-    page = 3
 
 
 class SupermarketTableKeys(Enum):
@@ -164,8 +162,8 @@ class Database:
         for table in ItemTables:
             self._cursor.execute(f"DROP TABLE {table.value}")
 
-        # for table in StoreTables:
-        #     self._cursor.execute(f"DROP TABLE {table.value}")
+        for table in StoreTables:
+            self._cursor.execute(f"DROP TABLE {table.value}")
 
     def printTables(self):
         self._cursor.execute("SHOW TABLES")
