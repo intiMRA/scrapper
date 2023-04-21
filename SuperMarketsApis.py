@@ -79,6 +79,7 @@ class CountdownItemKeys(Enum):
     images = "images"
     iconLarge = "big"
     category = "category"
+    frequencyScore = "frequency_score"
 
 
 class Apis:
@@ -416,7 +417,7 @@ class Apis:
                     priceStrig += "}"
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
-                name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "")
+                name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "").replace("@", "")
                 size = self._parseSize(item[OutputJsonKeys.size.value])
                 if size not in siz:
                     siz.append(size)

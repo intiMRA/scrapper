@@ -302,8 +302,8 @@ class Database:
         storeIdsQuery = storeIdsQuery[:-1]
 
         sql = f"SELECT * FROM {table.value} " \
-              f"WHERE {SupermarketTableKeys.page.value} = {page} " \
-              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery})"
+              f"WHERE ({SupermarketTableKeys.page.value} = {page} " \
+              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery}))"
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 

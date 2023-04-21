@@ -67,7 +67,6 @@ def fetchPage(page, newWorldIds, packNSaveIds):
         itemId = packNSaveItem[SupermarketTableIndexes.itemId.value]
         if itemId not in concatIds:
             concatIds.append(itemId)
-
     items = db.fetchItemsById(concatIds)
 
     itemIds = []
