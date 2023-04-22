@@ -212,7 +212,7 @@ class Apis:
             facets[k] = int(v)
         return facets
 
-    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation):
+    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation, numberOfStoresFile):
         url = "https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/store"
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
@@ -252,10 +252,10 @@ class Apis:
         db.startConnection()
         db.insertStores(values, table)
         db.closeConnection()
-        return
         storeIds = []
         for store in stores:
             storeIds.append(store["id"])
+        numberOfStoresFile.write(str(len(storeIds))+"\n")
         parseDict = {}
         fileName = FileNames.newWorldFile.value
         if superMarket == SuperMarketAbbreviation.packNSave:

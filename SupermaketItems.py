@@ -208,9 +208,9 @@ def fetchCategories(categories: [str], newWorldIds, packNSaveIds):
     for item in items:
         itemsDict[item[ItemsTableKeysIndexes.itemId.value]] = item
         itemIds.append(item[ItemsTableKeysIndexes.itemId.value])
-    countDown = db.fetchCountdownItems(itemIds)
-    nwItems = db.fetchFoodStuffsItems(itemIds, newWorldIds, ItemTables.newWorld)
-    psItems = db.fetchFoodStuffsItems(itemIds, packNSaveIds, ItemTables.pakNSave)
+    countDown = db.fetchCountdownItemsByIds(itemIds)
+    nwItems = db.fetchFoodStuffsItemsIds(itemIds, newWorldIds, ItemTables.newWorld)
+    psItems = db.fetchFoodStuffsItemsIds(itemIds, packNSaveIds, ItemTables.pakNSave)
     db.closeConnection()
     return {
         ItemTables.newWorld.value: _parseSuperMarketItemsToDict(nwItems, itemsDict, False),

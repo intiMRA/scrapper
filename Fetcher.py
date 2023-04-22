@@ -35,8 +35,10 @@ def dropTables():
 
 def fetchData():
     api = Apis()
-    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld)
-    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
+    numberOfStoresFile = open("numberOfStoresFile.txt", mode="w")
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld, numberOfStoresFile)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave, numberOfStoresFile)
+    numberOfStoresFile.close()
     api.fetchCountdownItems()
 
 
@@ -50,7 +52,8 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 
 def writeItemsToDB(items):
     db = Database()
-    itemsPerPage = 100
+    maxItemsPerQuery = 1000
+    itemsPerPage = 50
     countdowPage = 1
     newWorldPages = {}
     packNSavePages = {}
@@ -59,16 +62,19 @@ def writeItemsToDB(items):
     newWorldPageCounts = {}
     packNSavePageCounts = {}
 
-    values = []
+    itemValues = []
     psItemsDict = {}
     nwItemsDict = {}
     cdItemsDict = {}
-
-    # TODO: sort by frequency score
-    for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
+    numberOfStoresFile = open("numberOfStoresFile.txt", mode="r")
+    numberOfStoresFileRead = numberOfStoresFile.read()
+    numberOfNewWorldStores = int(numberOfStoresFileRead[0])
+    numberOfPackNSaveStores = int(numberOfStoresFileRead[1])
+    numberOfStoresFile.close()
+    for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x, numberOfNewWorldStores, numberOfPackNSaveStores))):
         itemId = str(uuid1())
-        itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
-        values.append(itemValues)
+        itemValue = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
+        itemValues.append(itemValue)
         if item[ConcatcKeys.countdownItemNames.value]:
             cdItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
@@ -145,10 +151,10 @@ def writeItemsToDB(items):
             else:
                 newCounts[psId] = packNSavePageCounts[psId]
         packNSavePageCounts = newCounts
-    cdValues = []
-    nwValues = []
-    psValues = []
-    for item in values:
+    countdownValues = []
+    newWorldValues = []
+    packNSaveValues = []
+    for item in itemValues:
         itemId = item[0]
         if itemId in cdItemsDict.keys():
             cdItem = []
@@ -157,42 +163,54 @@ def writeItemsToDB(items):
                 if key == SupermarketTableKeys.supermarketId:
                     continue
                 cdItem.append(cdDictItem[key.value])
-            cdValues.append(cdItem)
+            countdownValues.append(cdItem)
         for store in nwItemsDict.values():
             if itemId in store.keys():
                 nwItem = []
                 nwDictItem = store[itemId]
                 for key in SupermarketTableKeys:
                     nwItem.append(nwDictItem[key.value])
-                nwValues.append(nwItem)
+                newWorldValues.append(nwItem)
         for store in psItemsDict.values():
             if itemId in store.keys():
                 psItem = []
                 psDictItem = store[itemId]
                 for key in SupermarketTableKeys:
                     psItem.append(psDictItem[key.value])
-                psValues.append(psItem)
+                packNSaveValues.append(psItem)
     db.startConnection()
-    db.insertItems(values, ItemTables.items)
-    db.insertItems(cdValues, ItemTables.countdown)
-    v = len(psValues) // 1000
-    v2 = len(nwValues) // 1000
-    for i in range(0, v):
-        if (i + 1) * 1000 >= len(psValues):
-            db.insertItems(psValues[i*1000:-1], ItemTables.pakNSave)
+    packNSaveQueryNumber = len(packNSaveValues) // maxItemsPerQuery
+    newWorldQueryNumber = len(newWorldValues) // maxItemsPerQuery
+    countdownQueryNumber = len(countdownValues) // maxItemsPerQuery
+    itemsQueryNumber = len(itemValues) // maxItemsPerQuery
+    for i in range(0, itemsQueryNumber):
+        if (i + 1) * 1000 >= len(itemValues):
+            db.insertItems(itemValues[i*1000:-1], ItemTables.items)
         else:
-            db.insertItems(psValues[i * 1000:(i+1)*1000], ItemTables.pakNSave)
+            db.insertItems(itemValues[i * 1000:(i+1)*1000], ItemTables.items)
 
-    for i in range(0, v2):
-        if (i + 1) * 1000 >= len(nwValues):
-            db.insertItems(nwValues[i*1000:-1], ItemTables.newWorld)
+    for i in range(0, countdownQueryNumber):
+        if (i + 1) * 1000 >= len(countdownValues):
+            db.insertItems(countdownValues[i*1000:-1], ItemTables.countdown)
         else:
-            db.insertItems(nwValues[i * 1000:(i+1)*1000], ItemTables.newWorld)
+            db.insertItems(countdownValues[i * 1000:(i+1)*1000], ItemTables.countdown)
+
+    for i in range(0, packNSaveQueryNumber):
+        if (i + 1) * 1000 >= len(packNSaveValues):
+            db.insertItems(packNSaveValues[i*1000:-1], ItemTables.pakNSave)
+        else:
+            db.insertItems(packNSaveValues[i * 1000:(i+1)*1000], ItemTables.pakNSave)
+
+    for i in range(0, newWorldQueryNumber):
+        if (i + 1) * 1000 >= len(newWorldValues):
+            db.insertItems(newWorldValues[i*1000:-1], ItemTables.newWorld)
+        else:
+            db.insertItems(newWorldValues[i * 1000:(i+1)*1000], ItemTables.newWorld)
 
     db.closeConnection()
 
 
-def sortingKey(item) -> tuple:
+def sortingKey(item, numberOfNewWorldStores, numberOfPackNSaveStores) -> tuple:
     names = []
     count = 0.0
     if len(item[ConcatcKeys.countdownItemNames.value]) > 0:
@@ -205,9 +223,9 @@ def sortingKey(item) -> tuple:
             for number in numbers:
                 name = name.replace(number, "")
             names.append(name)
-    totalPsItems = 60
+
     lenPS = len(item[ConcatcKeys.packNSaveItemNames.value].keys())
-    count -= ((1 / totalPsItems) * lenPS)
+    count -= ((1 / numberOfPackNSaveStores) * lenPS)
     for nameKey in item[ConcatcKeys.packNSaveItemNames.value].keys():
         for nameString in item[ConcatcKeys.packNSaveItemNames.value][nameKey]:
             for name in nameString.split("@"):
@@ -217,9 +235,9 @@ def sortingKey(item) -> tuple:
                     name = name.replace(number, "")
                 names.append(name)
         break
-    totalNwItems = 143
+
     lenNW = len(item[ConcatcKeys.newWorldItemNames.value].keys())
-    count -= ((1 / totalNwItems) * lenNW)
+    count -= ((1 / numberOfNewWorldStores) * lenNW)
     for nameKey in item[ConcatcKeys.newWorldItemNames.value].keys():
         for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
             for name in nameString.split("@"):
@@ -440,17 +458,14 @@ def clusterData():
             _populateItem(items, pakNSaveItem, pakNSaveName, pakNSaveName in items, packNSaveKeyMap[psk],
                           SupportedStores.packNSave)
     writeItemsToDB(items)
-    # f = open("lol.txt", mode="w")
-    # json.dump(items, f)
-    # f.close()
 
     countdownFile.close()
     newWorldFile.close()
     packNSaveFile.close()
 
-
 dropTables()
 createTables()
+# fetchData()
 clusterData()
 # fetchData()
 # Apis().fetchCountdownItems()
