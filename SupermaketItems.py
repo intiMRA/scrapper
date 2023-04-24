@@ -69,8 +69,11 @@ def fetchPage(page: str, newWorldIds: list[str], packNSaveIds: list[str]) -> Res
     packNSaveItems = db.fetchFoodStuffsItemsByPage(page, packNSaveIds, ItemTables.pakNSave)
     itemsDictionary = _parseResponse(db, countdownItems, newWorldItems, packNSaveItems)
     outPutItemArray = []
-    for item in sorted(itemsDictionary.values(), key=lambda itemGroups: sortByName(itemGroups, alphabetical=True), reverse=True):
-        outPutItemArray.append(item)
+    for items in sorted(itemsDictionary.values(),
+                        key=lambda itemGroups: sortByName(itemGroups, alphabetical=True),
+                        reverse=True):
+        outPutItemArray.append(sorted(items, key=lambda item: sortByName([item], alphabetical=True),
+                                      reverse=True))
 
     return {ItemTables.items.value: outPutItemArray}
 
