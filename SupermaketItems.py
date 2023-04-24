@@ -3,8 +3,9 @@ from Database import Database
 from Database import ItemsTableKeys, SupermarketTableKeys, SupermarketTableIndexes, ItemTables, \
     StoreTables, StoreTablesKeys, StoreTablesIndexes, ItemsTableKeysIndexes
 from geopy import distance
+from typing import NewType
 
-ResponseType = type("Response", dict[str, list[list[dict, any]]])
+ResponseType = NewType("Response", dict[str, list[list[dict, any]]])
 
 
 def fetchStores(lat: str, long: str, radius: str) -> dict[str, list[dict[str, str]]]:
