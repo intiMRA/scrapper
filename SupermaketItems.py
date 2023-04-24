@@ -72,8 +72,7 @@ def fetchPage(page: str, newWorldIds: list[str], packNSaveIds: list[str]) -> Res
     for items in sorted(itemsDictionary.values(),
                         key=lambda itemGroups: sortByName(itemGroups, alphabetical=True),
                         reverse=True):
-        outPutItemArray.append(sorted(items, key=lambda item: sortByName([item], alphabetical=True),
-                                      reverse=True))
+        outPutItemArray.append(sorted(items, key=lambda item: sortByName([item], alphabetical=True)))
 
     return {ItemTables.items.value: outPutItemArray}
 
