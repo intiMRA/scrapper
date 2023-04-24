@@ -50,10 +50,14 @@ def searchForItems(query: str, newWorldIds: list[str], packNSaveIds: list[str]) 
     return {ItemTables.items.value: outPutItemArray}
 
 
-def sortByName(items: list[dict[str, any]], query: str = "a"):
+def sortByName(items: list[dict[str, any]], query: str = "a", alphabetical: bool = False) -> float:
     ratios = 0
     for item in items:
-        ratios += difflib.SequenceMatcher(None, item[SupermarketTableKeys.name.value], query).ratio()
+        itemName = item[SupermarketTableKeys.name.value]
+        if alphabetical:
+            ratios += difflib.SequenceMatcher(None, itemName, query * len(itemName)).ratio()
+        else:
+            ratios += difflib.SequenceMatcher(None, itemName, query).ratio()
     return ratios / (len(items))
 
 
@@ -65,7 +69,7 @@ def fetchPage(page: str, newWorldIds: list[str], packNSaveIds: list[str]) -> Res
     packNSaveItems = db.fetchFoodStuffsItemsByPage(page, packNSaveIds, ItemTables.pakNSave)
     itemsDictionary = _parseResponse(db, countdownItems, newWorldItems, packNSaveItems)
     outPutItemArray = []
-    for item in sorted(itemsDictionary.values(), key=lambda itemGroups: sortByName(itemGroups), reverse=True):
+    for item in sorted(itemsDictionary.values(), key=lambda itemGroups: sortByName(itemGroups, alphabetical=True), reverse=True):
         outPutItemArray.append(item)
 
     return {ItemTables.items.value: outPutItemArray}
@@ -258,7 +262,9 @@ def fetchCategories(categories: [str], newWorldIds: list[str], packNSaveIds: lis
             itemsDictionary[itemId].append(outPutItem)
 
     outPutItemArray = []
-    for item in sorted(itemsDictionary.values(), key=lambda itemGroups: sortByName(itemGroups), reverse=True):
+    for item in sorted(itemsDictionary.values(),
+                       key=lambda itemGroups: sortByName(itemGroups, alphabetical=True),
+                       reverse=True):
         outPutItemArray.append(item)
 
     return {ItemTables.items.value: outPutItemArray}
