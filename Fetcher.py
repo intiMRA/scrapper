@@ -35,8 +35,10 @@ def dropTables():
 
 def fetchData():
     api = Apis()
-    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld)
-    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave)
+    numberOfStoresFile = open("numberOfStoresFile.txt", mode="w")
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.newWorld, numberOfStoresFile)
+    api.fetchFoodStuffsItems(SuperMarketAbbreviation.packNSave, numberOfStoresFile)
+    numberOfStoresFile.close()
     api.fetchCountdownItems()
 
 
@@ -50,7 +52,8 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 
 def writeItemsToDB(items):
     db = Database()
-    itemsPerPage = 100
+    maxItemsPerQuery = 1000
+    itemsPerPage = 50
     countdowPage = 1
     newWorldPages = {}
     packNSavePages = {}
@@ -59,15 +62,19 @@ def writeItemsToDB(items):
     newWorldPageCounts = {}
     packNSavePageCounts = {}
 
-    values = []
+    itemValues = []
     psItemsDict = {}
     nwItemsDict = {}
     cdItemsDict = {}
-
-    # TODO: move page to items rather that ids
-    for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x))):
+    numberOfStoresFile = open("numberOfStoresFile.txt", mode="r")
+    numberOfStoresFileRead = numberOfStoresFile.read()
+    numberOfNewWorldStores = int(numberOfStoresFileRead[0])
+    numberOfPackNSaveStores = int(numberOfStoresFileRead[1])
+    numberOfStoresFile.close()
+    for index, item in enumerate(sorted(items.values(), key=lambda x: sortingKey(x, numberOfNewWorldStores, numberOfPackNSaveStores))):
         itemId = str(uuid1())
-        itemValues = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
+        itemValue = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
+        itemValues.append(itemValue)
         if item[ConcatcKeys.countdownItemNames.value]:
             cdItemsDict[itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
@@ -78,7 +85,7 @@ def writeItemsToDB(items):
                 SupermarketTableKeys.page.value: f'{countdowPage}'
             }
             countdowPageCount += 1
-
+        # TODO: item id is overriding, we need a list of newworld supermarket
         for nwId in item[ConcatcKeys.newWorldItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.newWorldItemNames.value][nwId])
             price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
@@ -87,14 +94,16 @@ def writeItemsToDB(items):
             if nwId not in newWorldPages:
                 newWorldPages[nwId] = 1
             page = newWorldPages[nwId]
-            nwItemsDict[itemId] = {
+            if nwId not in nwItemsDict.keys():
+                nwItemsDict[nwId] = {}
+            nwItemsDict[nwId][itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
                 SupermarketTableKeys.photoUrl.value: url,
-                SupermarketTableKeys.supermarketId.value: nwId,
-                SupermarketTableKeys.page.value: f'{page}'
+                SupermarketTableKeys.page.value: f'{page}',
+                SupermarketTableKeys.supermarketId.value: nwId
             }
             if nwId not in newWorldPageCounts.keys():
                 newWorldPageCounts[nwId] = 0
@@ -108,40 +117,44 @@ def writeItemsToDB(items):
             if psId not in packNSavePages:
                 packNSavePages[psId] = 1
             page = packNSavePages[psId]
-            psItemsDict[itemId] = {
+            if psId not in psItemsDict.keys():
+                psItemsDict[psId] = {}
+            psItemsDict[psId][itemId] = {
                 SupermarketTableKeys.itemId.value: itemId,
                 SupermarketTableKeys.name.value: name,
                 SupermarketTableKeys.price.value: price,
                 SupermarketTableKeys.size.value: size,
                 SupermarketTableKeys.photoUrl.value: url,
-                SupermarketTableKeys.supermarketId.value: psId,
-                SupermarketTableKeys.page.value: f'{page}'
+                SupermarketTableKeys.page.value: f'{page}',
+                SupermarketTableKeys.supermarketId.value: psId
             }
             if psId not in packNSavePageCounts.keys():
                 packNSavePageCounts[psId] = 0
             packNSavePageCounts[psId] = packNSavePageCounts[psId] + 1
 
-        values.append(itemValues)
-
-        if countdowPageCount > 0 and countdowPageCount % itemsPerPage == 0:
+        if countdowPageCount >= itemsPerPage:
             countdowPageCount = 0
             countdowPage += 1
-
+        newCounts = {}
         for nwId in newWorldPageCounts.keys():
-            if newWorldPageCounts[nwId] > 0 and newWorldPageCounts[nwId] % itemsPerPage == 0:
+            if newWorldPageCounts[nwId] >= itemsPerPage:
                 newWorldPages[nwId] = newWorldPages[nwId] + 1
-                newWorldPageCounts[nwId] = 0
-
+                newCounts[nwId] = 0
+            else:
+                newCounts[nwId] = newWorldPageCounts[nwId]
+        newWorldPageCounts = newCounts
+        newCounts = {}
         for psId in packNSavePageCounts.keys():
-            if packNSavePageCounts[psId] > 0 and packNSavePageCounts[psId] % itemsPerPage == 0:
+            if packNSavePageCounts[psId] >= itemsPerPage:
                 packNSavePages[psId] = packNSavePages[psId] + 1
-                packNSavePageCounts[psId] = 0
-
-    cdValues = []
-    nwValues = []
-    psValues = []
-    out = open("out.txt", mode="w")
-    for item in values:
+                newCounts[psId] = 0
+            else:
+                newCounts[psId] = packNSavePageCounts[psId]
+        packNSavePageCounts = newCounts
+    countdownValues = []
+    newWorldValues = []
+    packNSaveValues = []
+    for item in itemValues:
         itemId = item[0]
         if itemId in cdItemsDict.keys():
             cdItem = []
@@ -150,66 +163,94 @@ def writeItemsToDB(items):
                 if key == SupermarketTableKeys.supermarketId:
                     continue
                 cdItem.append(cdDictItem[key.value])
-            cdValues.append(cdItem)
-
-        if itemId in nwItemsDict.keys():
-            nwItem = []
-            nwDictItem = nwItemsDict[itemId]
-            for key in SupermarketTableKeys:
-                nwItem.append(nwDictItem[key.value])
-            nwValues.append(nwItem)
-
-        if itemId in psItemsDict.keys():
-            psItem = []
-            psDictItem = psItemsDict[itemId]
-            for key in SupermarketTableKeys:
-                psItem.append(psDictItem[key.value])
-            psValues.append(psItem)
-
-        if item[0] in cdItemsDict.keys() and item[0] in nwItemsDict.keys() and item[0] in psItemsDict.keys():
-            out.write(str(cdItemsDict[item[0]]["name"]) + "\n")
-            out.write(str(nwItemsDict[item[0]]["name"]) + "\n")
-            out.write(str(psItemsDict[item[0]]["name"]) + "\n")
-            out.write("-" * 100 + "\n")
-    out.close()
+            countdownValues.append(cdItem)
+        for store in nwItemsDict.values():
+            if itemId in store.keys():
+                nwItem = []
+                nwDictItem = store[itemId]
+                for key in SupermarketTableKeys:
+                    nwItem.append(nwDictItem[key.value])
+                newWorldValues.append(nwItem)
+        for store in psItemsDict.values():
+            if itemId in store.keys():
+                psItem = []
+                psDictItem = store[itemId]
+                for key in SupermarketTableKeys:
+                    psItem.append(psDictItem[key.value])
+                packNSaveValues.append(psItem)
     db.startConnection()
+    packNSaveQueryNumber = len(packNSaveValues) // maxItemsPerQuery
+    newWorldQueryNumber = len(newWorldValues) // maxItemsPerQuery
+    countdownQueryNumber = len(countdownValues) // maxItemsPerQuery
+    itemsQueryNumber = len(itemValues) // maxItemsPerQuery
+    for i in range(0, itemsQueryNumber):
+        if (i + 1) * 1000 >= len(itemValues):
+            db.insertItems(itemValues[i*1000:-1], ItemTables.items)
+        else:
+            db.insertItems(itemValues[i * 1000:(i+1)*1000], ItemTables.items)
 
-    db.insertItems(values, ItemTables.items)
-    db.insertItems(cdValues, ItemTables.countdown)
-    db.insertItems(psValues, ItemTables.pakNSave)
-    db.insertItems(nwValues, ItemTables.newWorld)
+    for i in range(0, countdownQueryNumber):
+        if (i + 1) * 1000 >= len(countdownValues):
+            db.insertItems(countdownValues[i*1000:-1], ItemTables.countdown)
+        else:
+            db.insertItems(countdownValues[i * 1000:(i+1)*1000], ItemTables.countdown)
+
+    for i in range(0, packNSaveQueryNumber):
+        if (i + 1) * 1000 >= len(packNSaveValues):
+            db.insertItems(packNSaveValues[i*1000:-1], ItemTables.pakNSave)
+        else:
+            db.insertItems(packNSaveValues[i * 1000:(i+1)*1000], ItemTables.pakNSave)
+
+    for i in range(0, newWorldQueryNumber):
+        if (i + 1) * 1000 >= len(newWorldValues):
+            db.insertItems(newWorldValues[i*1000:-1], ItemTables.newWorld)
+        else:
+            db.insertItems(newWorldValues[i * 1000:(i+1)*1000], ItemTables.newWorld)
 
     db.closeConnection()
 
 
-def sortingKey(item) -> str:
+def sortingKey(item, numberOfNewWorldStores, numberOfPackNSaveStores) -> tuple:
     names = []
+    count = 0.0
+    if len(item[ConcatcKeys.countdownItemNames.value]) > 0:
+        count = -1
+
     for nameString in item[ConcatcKeys.countdownItemNames.value]:
         for name in nameString.split("@"):
+            name = name.replace("&", "").replace("@", "")
             numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
             for number in numbers:
                 name = name.replace(number, "")
             names.append(name)
 
+    lenPS = len(item[ConcatcKeys.packNSaveItemNames.value].keys())
+    count -= ((1 / numberOfPackNSaveStores) * lenPS)
     for nameKey in item[ConcatcKeys.packNSaveItemNames.value].keys():
         for nameString in item[ConcatcKeys.packNSaveItemNames.value][nameKey]:
             for name in nameString.split("@"):
+                name = name.replace("&", "").replace("@", "")
                 numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
                 for number in numbers:
                     name = name.replace(number, "")
                 names.append(name)
         break
 
+    lenNW = len(item[ConcatcKeys.newWorldItemNames.value].keys())
+    count -= ((1 / numberOfNewWorldStores) * lenNW)
     for nameKey in item[ConcatcKeys.newWorldItemNames.value].keys():
         for nameString in item[ConcatcKeys.newWorldItemNames.value][nameKey]:
             for name in nameString.split("@"):
+                name = name.replace("&", "").replace("@", "")
                 numbers = re.findall(r'[0-9]+[aA-zZ]?[ ]+', name)
                 for number in numbers:
                     name = name.replace(number, "")
                 names.append(name)
         break
     names = sorted(names)
-    return names[0]
+    if count > -1:
+        count = -1
+    return (count, names[0])
 
 
 def parseItemToString(values) -> str:
@@ -417,17 +458,14 @@ def clusterData():
             _populateItem(items, pakNSaveItem, pakNSaveName, pakNSaveName in items, packNSaveKeyMap[psk],
                           SupportedStores.packNSave)
     writeItemsToDB(items)
-    # f = open("lol.txt", mode="w")
-    # json.dump(items, f)
-    # f.close()
 
     countdownFile.close()
     newWorldFile.close()
     packNSaveFile.close()
 
-
 dropTables()
 createTables()
+# fetchData()
 clusterData()
 # fetchData()
 # Apis().fetchCountdownItems()

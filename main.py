@@ -25,12 +25,12 @@ def getPage(page):
 
 
 @app.get('/items/search')
-def getItems():
+def searchItems():
     args = request.args.to_dict()
     newWorldIds = args[ParameterKeys.newWorldIds.value].split(",")
     packNSaveIds = args[ParameterKeys.packNSaveIds.value].split(",")
     query = args[ParameterKeys.query.value]
-    return {'items': SupermaketItems.fetchItems(query, newWorldIds, packNSaveIds)}
+    return SupermaketItems.searchForItems(query, newWorldIds, packNSaveIds)
 
 
 @app.route('/items/category')

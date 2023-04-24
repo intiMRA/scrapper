@@ -79,6 +79,7 @@ class CountdownItemKeys(Enum):
     images = "images"
     iconLarge = "big"
     category = "category"
+    frequencyScore = "frequency_score"
 
 
 class Apis:
@@ -211,7 +212,7 @@ class Apis:
             facets[k] = int(v)
         return facets
 
-    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation):
+    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation, numberOfStoresFile):
         url = "https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/store"
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
@@ -251,10 +252,10 @@ class Apis:
         db.startConnection()
         db.insertStores(values, table)
         db.closeConnection()
-        return
         storeIds = []
         for store in stores:
             storeIds.append(store["id"])
+        numberOfStoresFile.write(str(len(storeIds))+"\n")
         parseDict = {}
         fileName = FileNames.newWorldFile.value
         if superMarket == SuperMarketAbbreviation.packNSave:
@@ -416,7 +417,7 @@ class Apis:
                     priceStrig += "}"
                 category = item[OutputJsonKeys.category.value]
                 photoUrl = item[OutputJsonKeys.photoUrl.value]
-                name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "")
+                name = name.replace(f'-{item[OutputJsonKeys.size.value]}', "").replace('"', "").replace("@", "")
                 size = self._parseSize(item[OutputJsonKeys.size.value])
                 if size not in siz:
                     siz.append(size)

@@ -202,63 +202,31 @@ class Database:
 
         self._cursor.execute(f"SELECT * FROM {ItemTables.countdown.value} "
                              f"WHERE {SupermarketTableKeys.name.value} "
-                             f"like '%{query}%'")
+                             f"like '%{query}%' "
+                             f"LIMIT 1000")
 
-        countdownItems = sorted(self._cursor.fetchall(),
-                                key=lambda item: difflib.SequenceMatcher(
-                                    None,
-                                    item[SupermarketTableIndexes.name.value],
-                                    query).ratio(),
-                                reverse=True)
+        countdownItems = self._cursor.fetchall()
 
         self._cursor.execute(f"SELECT * FROM {ItemTables.newWorld.value} "
-                             f"WHERE {SupermarketTableKeys.name.value} "
+                             f"WHERE ({SupermarketTableKeys.name.value} "
                              f"like '%{query}%' "
-                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({nwStoreIdsQuery})")
+                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({nwStoreIdsQuery}))"
+                             f"LIMIT 1000")
 
-        newWorldItems = sorted(self._cursor.fetchall(),
-                               key=lambda item: difflib.SequenceMatcher(
-                                   None,
-                                   item[SupermarketTableIndexes.name.value],
-                                   query).ratio(),
-                               reverse=True)
+        newWorldItems = self._cursor.fetchall()
 
         self._cursor.execute(f"SELECT * FROM {ItemTables.pakNSave.value} "
-                             f"WHERE {SupermarketTableKeys.name.value} "
+                             f"WHERE ({SupermarketTableKeys.name.value} "
                              f"like '%{query}%' "
-                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({psStoreIdsQuery})")
+                             f"AND {SupermarketTableKeys.supermarketId.value} IN ({psStoreIdsQuery}))"
+                             f"LIMIT 1000")
 
-        packNSaveItems = sorted(self._cursor.fetchall(),
-                                key=lambda item: difflib.SequenceMatcher(
-                                    None,
-                                    item[SupermarketTableIndexes.name.value],
-                                    query).ratio(),
-                                reverse=True)
-
-        itemIds = []
-        for countdownItem in countdownItems:
-            itemIds.append(countdownItem[SupermarketTableIndexes.itemId.value])
-
-        for packNSaveItem in packNSaveItems:
-            itemId = packNSaveItem[SupermarketTableIndexes.itemId.value]
-            if itemId not in itemIds:
-                itemIds.append(itemId)
-
-        for newWorldItem in newWorldItems:
-            itemId = newWorldItem[SupermarketTableIndexes.itemId.value]
-            if itemId not in itemIds:
-                itemIds.append(itemId)
-
-        items = self.fetchItemsById(itemIds)
-        itemsDict = {}
-        for item in items:
-            itemsDict[item[ItemsTableKeysIndexes.itemId.value]] = item
+        packNSaveItems = self._cursor.fetchall()
 
         return {
             ItemTables.countdown.value: countdownItems,
             ItemTables.newWorld.value: newWorldItems,
             ItemTables.pakNSave.value: packNSaveItems,
-            ItemTables.items.value: itemsDict
         }
 
     def fetchCountdownItemsByIds(self, itemIds):
@@ -302,8 +270,8 @@ class Database:
         storeIdsQuery = storeIdsQuery[:-1]
 
         sql = f"SELECT * FROM {table.value} " \
-              f"WHERE {SupermarketTableKeys.page.value} = {page} " \
-              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery})"
+              f"WHERE ({SupermarketTableKeys.page.value} = {page} " \
+              f"AND {SupermarketTableKeys.supermarketId.value} IN ({storeIdsQuery}))"
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
