@@ -5,7 +5,7 @@ from Database import ItemsTableKeys, SupermarketTableKeys, SupermarketTableIndex
 from geopy import distance
 from typing import NewType
 
-ResponseType = NewType("Response", dict[str, list[list[dict, any]]])
+ResponseType = NewType("Response", dict[str, list[list[dict[str, any]]]])
 
 
 def fetchStores(lat: str, long: str, radius: str) -> dict[str, list[dict[str, str]]]:

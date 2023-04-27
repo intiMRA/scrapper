@@ -654,7 +654,8 @@ categoryToNames = {"International": [
         "Restricted Items",
         "Featured",
         "Pest Control",
-        "Magazines & Stationery"
+        "Magazines & Stationery",
+        "Brinks"
     ]
 }
 
@@ -1229,6 +1230,7 @@ nameToCategory = {
     "featured": ['Other'],
     "pest-control": ['Other'],
     "magazines-&-stationery": ['Other'],
+    "brinks": ['Other']
 }
 
 symbols = ['"', "'", ",", "\n", "[", "]", ".", "-"]
