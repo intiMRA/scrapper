@@ -125,6 +125,8 @@ class Apis:
         itemDict = {}
         count = 0
         for department in departments:
+            print(f'started fetching {department["name"]}, number {count} out of {len(departments)}')
+
             url = f'https://www.countdown.co.nz' \
                   f'/api/v1/products?dasFilter=Department%3B%3B{department[CountdownItemKeys.category.value]}%3Bfalse&dasFilter' \
                   "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
@@ -136,7 +138,7 @@ class Apis:
                 items = res[CountdownKeys.products.value][CountdownKeys.items.value]
                 if len(items) == 0:
                     count += 1
-                    print(f'{department["name"]}, {count} out of {len(departments)} DONE')
+                    print(f'done fetching {department["name"]}, number {count} out of {len(departments)}')
                     break
                 for item in items:
                     if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value \
@@ -212,7 +214,7 @@ class Apis:
             facets[k] = int(v)
         return facets
 
-    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation, numberOfStoresFile):
+    def fetchFoodStuffsItems(self, superMarket: SuperMarketAbbreviation) -> int:
         url = "https://api-prod.prod.fsniwaikato.kiwi/prod/mobile/store"
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
@@ -255,7 +257,6 @@ class Apis:
         storeIds = []
         for store in stores:
             storeIds.append(store["id"])
-        numberOfStoresFile.write(str(len(storeIds))+"\n")
         parseDict = {}
         fileName = FileNames.newWorldFile.value
         if superMarket == SuperMarketAbbreviation.packNSave:
@@ -272,10 +273,13 @@ class Apis:
                     name = item[OutputJsonKeys.name.value]
                     if name in parseDict[key].keys():
                         if identifier in parseDict[key][name][OutputJsonKeys.price.value].keys():
-                            if float(item[OutputJsonKeys.price.value]) > float(parseDict[key][name][OutputJsonKeys.price.value][identifier]):
-                                parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[OutputJsonKeys.price.value]
+                            if float(item[OutputJsonKeys.price.value]) > float(
+                                    parseDict[key][name][OutputJsonKeys.price.value][identifier]):
+                                parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[
+                                    OutputJsonKeys.price.value]
                         else:
-                            parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[OutputJsonKeys.price.value]
+                            parseDict[key][name][OutputJsonKeys.price.value][identifier] = item[
+                                OutputJsonKeys.price.value]
                     else:
                         parsedItem = {}
                         parsedItem[OutputJsonKeys.name.value] = name
@@ -296,6 +300,7 @@ class Apis:
         self._writeItem(itemsDict, outputFile, True)
         outputFile.write("}\n")
         outputFile.close()
+        return len(storeIds)
 
     def _fetchFoodStuffIStoreItems(self, superMarket: SuperMarketAbbreviation, storeId) -> dict:
         facets = self._getFoodStuffsFacets(superMarket, storeId)
@@ -319,8 +324,9 @@ class Apis:
 
         itemsDict = {}
         headers = self._foodStuffsHeaders
-
+        facetCount = 1
         for facet in fcs:
+            print(f'started fetching {facet}, number {facetCount} out of {len(fcs)}')
             requestBody = '{' + f'"query":"","facets":["{FoodStuffsKeys.category1NI.value}",' \
                                 f'"onPromotion"],"attributesToHighlight":[],' \
                                 '"sortFacetValuesBy":"alpha","hitsPerPage":"10000","facetFilters":[' \
@@ -338,7 +344,10 @@ class Apis:
 
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
+            print(f'done fetching {facet}, number {facetCount} out of {len(fcs)}')
+            facetCount += 1
         return itemsDict
+
     def _getToken(self, superMarketType: SuperMarketAbbreviation) -> str:
         headers = {
             'Host': 'api-prod.prod.fsniwaikato.kiwi',
