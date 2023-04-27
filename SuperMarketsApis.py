@@ -1,3 +1,5 @@
+import typing
+
 import requests
 from requests.adapters import Retry, HTTPAdapter
 import json
@@ -6,7 +8,7 @@ from dotenv import load_dotenv
 import os
 from pathlib import Path
 import finalCategories
-import typing
+from typing import List, Dict, Any, Union, IO
 import re
 import gc
 from Database import Database, StoreTablesKeys, StoreTables
@@ -82,7 +84,9 @@ class CountdownItemKeys(Enum):
     frequencyScore = "frequency_score"
 
 
+# noinspection PyTypeChecker
 class Apis:
+    _foodStuffsItemsType = typing.NewType("foodStuffsItemType", Dict[str, List[Dict[str, Any]]])
     _countDownHeaders = {
         'Host': 'www.countdown.co.nz',
         'Pragma': 'no-cache',
@@ -101,7 +105,7 @@ class Apis:
 
     _foodStuffsHeaders = ''
 
-    def _fetchDepartments(self) -> [{str: str}]:
+    def _fetchDepartments(self) -> List[Dict[str, str]]:
         url = "https://www.countdown.co.nz/api/v1/products?target=specials"
         response = requests.get(
             url,
@@ -120,58 +124,58 @@ class Apis:
 
     def fetchCountdownItems(self):
         departments = self._fetchDepartments()
-        countDownDataFile = open("countDownData.json", mode="w")
-        countDownDataFile.write("{\n")
-        itemDict = {}
-        count = 0
-        for department in departments:
-            print(f'started fetching {department["name"]}, number {count} out of {len(departments)}')
+        with open("countDownData.json", mode="w") as countDownDataFile:
+            countDownDataFile.write("{\n")
+            itemDict: Dict[str, List[Dict[str, str]]] = {}
+            count = 0
 
-            url = f'https://www.countdown.co.nz' \
-                  f'/api/v1/products?dasFilter=Department%3B%3B{department[CountdownItemKeys.category.value]}%3Bfalse&dasFilter' \
-                  "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
-            for pageNumber in range(1, 120):
-                response = requests.get(
-                    f'{url}&page={pageNumber}',
-                    headers=self._countDownHeaders)
-                res = json.loads(response.text)
-                items = res[CountdownKeys.products.value][CountdownKeys.items.value]
-                if len(items) == 0:
-                    count += 1
-                    print(f'done fetching {department["name"]}, number {count} out of {len(departments)}')
-                    break
-                for item in items:
-                    if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value \
-                            or CountdownItemKeys.price.value not in item:
-                        continue
-                    brand = item[CountdownItemKeys.brand.value]
-                    if brand not in itemDict:
-                        itemDict[brand] = []
-                    name = item[CountdownItemKeys.name.value]
-                    price = item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]
-                    category = finalCategories.concatCategories(department[CountdownItemKeys.name.value])
-                    photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconLarge.value]
-                    size = item[CountdownItemKeys.size.value][CountdownItemKeys.volumeSize.value]
-                    if not size:
-                        size = item[CountdownItemKeys.size.value][CountdownItemKeys.packageType.value]
+            for department in departments:
+                print(f'started fetching {department["name"]}, number {count} out of {len(departments)}')
 
-                    if not item:
-                        size = item[CountdownItemKeys.size.value][CountdownItemKeys.cupMeasure.value]
-                    if not size:
-                        size = item[CountdownItemKeys.unit.value]
-                    parsedItem = {f'{OutputJsonKeys.name.value}': name,
-                                  f'{OutputJsonKeys.price.value}': price,
-                                  f'{OutputJsonKeys.category.value}': category,
-                                  f'{OutputJsonKeys.photoUrl.value}': photoUrl,
-                                  f'{OutputJsonKeys.size.value}': size,
-                                  }
-                    itemDict[brand].append(parsedItem)
+                url = f'https://www.countdown.co.nz' \
+                      f'/api/v1/products?dasFilter=Department%3B%3B{department[CountdownItemKeys.category.value]}%3Bfalse&dasFilter' \
+                      "=Aisle%3B%3Bfresh-deals%3Bfalse&target=browse&promo_name=%20-%20Specials%20Hub"
+                for pageNumber in range(1, 120):
+                    response = requests.get(
+                        f'{url}&page={pageNumber}',
+                        headers=self._countDownHeaders)
+                    res = json.loads(response.text)
+                    items = res[CountdownKeys.products.value][CountdownKeys.items.value]
+                    if len(items) == 0:
+                        count += 1
+                        print(f'done fetching {department["name"]}, number {count} out of {len(departments)}')
+                        break
+                    for item in items:
+                        if item[CountdownItemKeys.type.value] == CountdownItemIgnoreKeys.adds.value \
+                                or CountdownItemKeys.price.value not in item:
+                            continue
+                        brand = item[CountdownItemKeys.brand.value]
+                        if brand not in itemDict:
+                            itemDict[brand] = []
+                        name = item[CountdownItemKeys.name.value]
+                        price = item[CountdownItemKeys.price.value][CountdownItemKeys.salePrice.value]
+                        category = finalCategories.concatCategories(department[CountdownItemKeys.name.value])
+                        photoUrl = item[CountdownItemKeys.images.value][CountdownItemKeys.iconLarge.value]
+                        size = item[CountdownItemKeys.size.value][CountdownItemKeys.volumeSize.value]
+                        if not size:
+                            size = item[CountdownItemKeys.size.value][CountdownItemKeys.packageType.value]
 
-        self._writeItem(itemDict, countDownDataFile, False)
-        countDownDataFile.write("}\n")
-        countDownDataFile.close()
+                        if not item:
+                            size = item[CountdownItemKeys.size.value][CountdownItemKeys.cupMeasure.value]
+                        if not size:
+                            size = item[CountdownItemKeys.unit.value]
+                        parsedItem = {f'{OutputJsonKeys.name.value}': name,
+                                      f'{OutputJsonKeys.price.value}': price,
+                                      f'{OutputJsonKeys.category.value}': category,
+                                      f'{OutputJsonKeys.photoUrl.value}': photoUrl,
+                                      f'{OutputJsonKeys.size.value}': size,
+                                      }
+                        itemDict[brand].append(parsedItem)
 
-    def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId) -> {str: int}:
+            self._writeItem(itemDict, countDownDataFile, False)
+            countDownDataFile.write("}\n")
+
+    def _getFoodStuffsFacets(self, superMarket: SuperMarketAbbreviation, storeId: str) -> Dict[str, int]:
         if superMarket == SuperMarketAbbreviation.packNSave:
             self._foodStuffsHeaders = {
                 'Host': 'api-prod.prod.fsniwaikato.kiwi',
@@ -205,7 +209,7 @@ class Apis:
               f'/prod/mobile/v1/product/search/{superMarket.value}?sortOrder=popularity'
         headers = self._foodStuffsHeaders
         headers["Authorization"] = self._getToken(superMarketType=superMarket)
-        response = requests.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+        response = requests.post(url, headers=headers, data=requestBody)
         dictionary = json.loads(response.text)
         dictionary = dictionary[FoodStuffsKeys.facets.value][FoodStuffsKeys.category1NI.value]
         facets = {}
@@ -302,7 +306,7 @@ class Apis:
         outputFile.close()
         return len(storeIds)
 
-    def _fetchFoodStuffIStoreItems(self, superMarket: SuperMarketAbbreviation, storeId) -> dict:
+    def _fetchFoodStuffIStoreItems(self, superMarket: SuperMarketAbbreviation, storeId: str) -> _foodStuffsItemsType:
         facets = self._getFoodStuffsFacets(superMarket, storeId)
         fcs = []
         count = 0
@@ -340,7 +344,7 @@ class Apis:
             s = requests.session()
             retries = Retry(total=5, backoff_factor=0.1, status_forcelist=[400])
             s.mount('https://', HTTPAdapter(max_retries=retries))
-            response = s.post(url, headers=self._foodStuffsHeaders, data=requestBody)
+            response = s.post(url, headers=headers, data=requestBody)
 
             jsonResponse = json.loads(response.text)
             self._writeFoodStuffsResponse(itemsDict, jsonResponse, storeId)
@@ -408,7 +412,10 @@ class Apis:
             self._token = f'Bearer {bearerToken}'
             return f'Bearer {bearerToken}'
 
-    def _writeItem(self, dictionary, file, hasMultiplePrices):
+    def _writeItem(self,
+                   dictionary: Dict[str, List[Dict[str, Union[str, Dict[str, str]]]]],
+                   file: IO,
+                   hasMultiplePrices: bool):
         numBrands = len(dictionary.keys()) - 1
         siz = []
         for brandIndex, brand in enumerate(dictionary.keys()):
@@ -475,7 +482,8 @@ class Apis:
             size = size.replace(key, cleanUpDict[key])
         return size
 
-    def _writeFoodStuffsResponse(self, itemsDict, jsonResponse: {str: typing.Any}, storeId: str):
+    def _writeFoodStuffsResponse(self, itemsDict: _foodStuffsItemsType,
+                                 jsonResponse: Dict[str, Any], storeId: str):
         try:
             items = jsonResponse[FoodStuffsKeys.products.value]
         except:

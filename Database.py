@@ -162,7 +162,7 @@ class Database:
 
     def fetchItemsByName(self, query, newWorldIds: [str], packNSaveIds: [str]):
         self._cursor.execute(f"SELECT * FROM {ItemTables.countdown.value} "
-                             f"WHERE ({SupermarketTableKeys.name.value} "
+                             f"WHERE {SupermarketTableKeys.name.value} "
                              f"like '%{query}%' LIMIT 1000")
 
         countdownItems = self._cursor.fetchall()
