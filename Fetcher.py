@@ -5,7 +5,7 @@ from SuperMarketsApis import Apis
 from SuperMarketsApis import SuperMarketAbbreviation
 import finalCategories
 from SuperMarketsApis import OutputJsonKeys
-from fuzzywuzzy import fuzz
+from fuzzywuzzy.fuzz import token_sort_ratio as ratio
 from Database import ConcatcKeys, ItemsTableKeys, SupermarketTableKeys, ItemTables
 from uuid import uuid1
 import re
@@ -50,14 +50,15 @@ def concatCategory(oldCategory: str, newCategoryString: str) -> str:
 
 
 def writeItemsToDB(items: dict[str, any]):
+    print("start decluster")
     db = Database()
     maxItemsPerQuery = 1000
     itemsPerPage = 50
-    countdowPage = 1
+    countdownPage = 1
     newWorldPages = {}
     packNSavePages = {}
 
-    countdowPageCount = 0
+    countdownPageCount = 0
     newWorldPageCounts = {}
     packNSavePageCounts = {}
 
@@ -68,7 +69,8 @@ def writeItemsToDB(items: dict[str, any]):
     with open("numberOfStoresFile.txt", mode="r") as f:
         numberOfNewWorldStores, numberOfPackNSaveStores = map(int, f.read().split(','))
     items = sorted(items.values(), key=lambda x: sortingKey(x, numberOfNewWorldStores, numberOfPackNSaveStores))
-    for index, item in enumerate(items):
+    print("all sorted")
+    for item in items:
         itemId = str(uuid1())
         itemValue = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
         itemValues.append(itemValue)
@@ -79,10 +81,11 @@ def writeItemsToDB(items: dict[str, any]):
                 SupermarketTableKeys.price.value: parseItemToString(item[ConcatcKeys.countdownPrices.value]),
                 SupermarketTableKeys.size.value: parseItemToString(item[ConcatcKeys.countdownSizes.value]),
                 SupermarketTableKeys.photoUrl.value: parseItemToString(item[ConcatcKeys.countdownphotoUrls.value]),
-                SupermarketTableKeys.page.value: f'{countdowPage}'
+                SupermarketTableKeys.page.value: f'{countdownPage}'
             }
-            countdowPageCount += 1
-        # TODO: item id is overriding, we need a list of newworld supermarket
+            countdownPageCount += 1
+
+        nwCounts = {}
         for nwId in item[ConcatcKeys.newWorldItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.newWorldItemNames.value][nwId])
             price = parseItemToString(item[ConcatcKeys.newWorldPrices.value][nwId])
@@ -103,9 +106,18 @@ def writeItemsToDB(items: dict[str, any]):
                 SupermarketTableKeys.supermarketId.value: nwId
             }
             if nwId not in newWorldPageCounts.keys():
-                newWorldPageCounts[nwId] = 0
-            newWorldPageCounts[nwId] = newWorldPageCounts[nwId] + 1
+                newWorldPageCounts[nwId] = 1
+            else:
+                newWorldPageCounts[nwId] = newWorldPageCounts[nwId] + 1
 
+            if newWorldPageCounts[nwId] >= itemsPerPage:
+                newWorldPages[nwId] = newWorldPages[nwId] + 1
+                nwCounts[nwId] = 0
+            else:
+                nwCounts[nwId] = newWorldPageCounts[nwId]
+        newWorldPageCounts = nwCounts
+
+        psCounts = {}
         for psId in item[ConcatcKeys.packNSaveItemNames.value].keys():
             name = parseItemToString(item[ConcatcKeys.packNSaveItemNames.value][psId])
             price = parseItemToString(item[ConcatcKeys.packNSavePrices.value][psId])
@@ -126,28 +138,20 @@ def writeItemsToDB(items: dict[str, any]):
                 SupermarketTableKeys.supermarketId.value: psId
             }
             if psId not in packNSavePageCounts.keys():
-                packNSavePageCounts[psId] = 0
-            packNSavePageCounts[psId] = packNSavePageCounts[psId] + 1
-
-        if countdowPageCount >= itemsPerPage:
-            countdowPageCount = 0
-            countdowPage += 1
-        newCounts = {}
-        for nwId in newWorldPageCounts.keys():
-            if newWorldPageCounts[nwId] >= itemsPerPage:
-                newWorldPages[nwId] = newWorldPages[nwId] + 1
-                newCounts[nwId] = 0
+                packNSavePageCounts[psId] = 1
             else:
-                newCounts[nwId] = newWorldPageCounts[nwId]
-        newWorldPageCounts = newCounts
-        newCounts = {}
-        for psId in packNSavePageCounts.keys():
+                packNSavePageCounts[psId] = packNSavePageCounts[psId] + 1
+
             if packNSavePageCounts[psId] >= itemsPerPage:
                 packNSavePages[psId] = packNSavePages[psId] + 1
-                newCounts[psId] = 0
+                psCounts[psId] = 0
             else:
-                newCounts[psId] = packNSavePageCounts[psId]
-        packNSavePageCounts = newCounts
+                psCounts[psId] = packNSavePageCounts[psId]
+        packNSavePageCounts = psCounts
+
+        if countdownPageCount >= itemsPerPage:
+            countdownPageCount = 0
+            countdownPage += 1
 
     countdownValues = [
         [cdDictItem[key.value] for key in SupermarketTableKeys if key != SupermarketTableKeys.supermarketId] for
@@ -159,38 +163,18 @@ def writeItemsToDB(items: dict[str, any]):
     packNSaveValues = [[psDictItem[key.value] for key in SupermarketTableKeys] for store in psItemsDict.values() for
                        itemId, psDictItem in store.items() if itemId in [item[0] for item in itemValues]]
 
-    # countdownValues = []
-    # newWorldValues = []
-    # packNSaveValues = []
-    # for item in itemValues:
-    #     itemId = item[0]
-    #     if itemId in cdItemsDict.keys():
-    #         cdItem = []
-    #         cdDictItem = cdItemsDict[itemId]
-    #         for key in SupermarketTableKeys:
-    #             if key == SupermarketTableKeys.supermarketId:
-    #                 continue
-    #             cdItem.append(cdDictItem[key.value])
-    #         countdownValues.append(cdItem)
-    #     for store in nwItemsDict.values():
-    #         if itemId in store.keys():
-    #             nwItem = []
-    #             nwDictItem = store[itemId]
-    #             for key in SupermarketTableKeys:
-    #                 nwItem.append(nwDictItem[key.value])
-    #             newWorldValues.append(nwItem)
-    #     for store in psItemsDict.values():
-    #         if itemId in store.keys():
-    #             psItem = []
-    #             psDictItem = store[itemId]
-    #             for key in SupermarketTableKeys:
-    #                 psItem.append(psDictItem[key.value])
-    #             packNSaveValues.append(psItem)
     db.startConnection()
+    allQueries = (len(itemValues) // maxItemsPerQuery) \
+                 + (len(countdownValues) // maxItemsPerQuery) \
+                 + (len(packNSaveValues) // maxItemsPerQuery) \
+                 + (len(newWorldValues) // maxItemsPerQuery)
+    queryCount = 0
     # Insert items into the main items table
     for i in range(0, len(itemValues), maxItemsPerQuery):
         db.insertItems(itemValues[i:i + maxItemsPerQuery], ItemTables.items)
-
+        queryCount += 1
+        percentage = queryCount / allQueries
+        print(f"{percentage:.2%} of queries done")
     # Insert values into the three supermarket-specific tables
     tables = {
         ItemTables.countdown: countdownValues,
@@ -200,6 +184,9 @@ def writeItemsToDB(items: dict[str, any]):
     for table, values in tables.items():
         for i in range(0, len(values), maxItemsPerQuery):
             db.insertItems(values[i:i + maxItemsPerQuery], table)
+            queryCount += 1
+            percentage = queryCount / allQueries
+            print(f"{percentage:.2%} of queries done")
 
     db.closeConnection()
 
@@ -261,7 +248,8 @@ def _populateItem(items: dict[str, any],
                   itemExists: bool,
                   brand: str,
                   supermarket: SupportedStores):
-    if not itemExists:
+    itemName = itemName + brand
+    if (not itemExists) and itemName not in items.keys():
         items[itemName] = {}
 
         for key in [ConcatcKeys.countdownItemNames.value,
@@ -287,13 +275,14 @@ def _populateItem(items: dict[str, any],
     prices = items[itemName][ConcatcKeys.countdownPrices.value]
     sizes = items[itemName][ConcatcKeys.countdownSizes.value]
     urls = items[itemName][ConcatcKeys.countdownphotoUrls.value]
+
     if supermarket == SupportedStores.newWorld:
         names = items[itemName][ConcatcKeys.newWorldItemNames.value]
         sizes = items[itemName][ConcatcKeys.newWorldSizes.value]
         for key in names.keys():
             for index in range(0, len(names[key])):
                 if names[key][index] == dictionary[OutputJsonKeys.name.value] and \
-                        dictionary["size"] == sizes[key][index]:
+                        dictionary[OutputJsonKeys.size.value] == sizes[key][index]:
                     return
 
         prices = items[itemName][ConcatcKeys.newWorldPrices.value]
@@ -305,7 +294,7 @@ def _populateItem(items: dict[str, any],
         for key in names.keys():
             for index in range(0, len(names[key])):
                 if names[key][index] == dictionary[OutputJsonKeys.name.value] and \
-                        dictionary["size"] == sizes[key][index]:
+                        dictionary[OutputJsonKeys.size.value] == sizes[key][index]:
                     return
 
         prices = items[itemName][ConcatcKeys.packNSavePrices.value]
@@ -313,13 +302,13 @@ def _populateItem(items: dict[str, any],
 
     else:
         for index, item in enumerate(names):
-            if item == dictionary[OutputJsonKeys.name.value] and dictionary["size"] == sizes[index]:
+            if item == dictionary[OutputJsonKeys.name.value] and dictionary[OutputJsonKeys.size.value] == sizes[index]:
                 return
 
         names.append(dictionary[OutputJsonKeys.name.value])
         prices.append(dictionary[OutputJsonKeys.price.value])
-        sizes.append(dictionary["size"])
-        urls.append(dictionary["photoUrl"])
+        sizes.append(dictionary[OutputJsonKeys.size.value])
+        urls.append(dictionary[OutputJsonKeys.photoUrl.value])
 
     if supermarket == SupportedStores.newWorld or supermarket == SupportedStores.packNSave:
         for priceKey in dictionary[OutputJsonKeys.price.value].keys():
@@ -339,7 +328,7 @@ def _populateItem(items: dict[str, any],
 
 
 def clusterData():
-    treshold = 80
+    treshold = 85
     stopSet = read_json_file("stopWords.json")["nonKeyWords"]
 
     countdownDict = read_json_file("countDownData.json")
@@ -349,98 +338,126 @@ def clusterData():
     newWorldKeyMap = {finalCategories.transformToKey(key): key for key in newWorldDict.keys()}
     packNSaveKeyMap = {finalCategories.transformToKey(key): key for key in packNSaveDict.keys()}
     countdownKeyMap = {finalCategories.transformToKey(key): key for key in countdownDict.keys()}
-    newWorldKeys = [finalCategories.transformToKey(key) for key in newWorldDict.keys()]
-    packNSaveKeys = [finalCategories.transformToKey(key) for key in packNSaveDict.keys()]
-    countdownKeys = [finalCategories.transformToKey(key) for key in countdownDict.keys()]
+    newWorldKeys = set([finalCategories.transformToKey(key) for key in newWorldDict.keys()])
+    packNSaveKeys = set([finalCategories.transformToKey(key) for key in packNSaveDict.keys()])
+    countdownKeys = set([finalCategories.transformToKey(key) for key in countdownDict.keys()])
+
+    allCommonKeys = newWorldKeys & countdownKeys & packNSaveKeys
+
+    packNSaveCountDownKeys = (packNSaveKeys & countdownKeys) - allCommonKeys
+    newWorldCountDownKeys = (newWorldKeys & countdownKeys) - allCommonKeys
+    packNSaveNewworldKeys = (packNSaveKeys & newWorldKeys) - allCommonKeys
+
+    overlappingKeys = allCommonKeys & newWorldCountDownKeys & packNSaveCountDownKeys & packNSaveNewworldKeys
+    countdownKeys -= overlappingKeys
+    packNSaveKeys -= overlappingKeys
+    newWorldKeys -= overlappingKeys
 
     items = {}
-    for key in countdownDict.keys():
-        brand = countdownDict[key]
-        ckm = finalCategories.transformToKey(key)
-        countdownKeys.remove(ckm)
-        for countDownItem in brand:
-            countdownName = finalCategories.transformItem(countDownItem[OutputJsonKeys.name.value], stopSet)
+    for allCommonKey in allCommonKeys:
+        packNSaveMappedKey = packNSaveKeyMap[allCommonKey]
+        newWorldMappedKey = newWorldKeyMap[allCommonKey]
+        countdownMappedKey = countdownKeyMap[allCommonKey]
 
+        packNSaveItems = packNSaveDict[packNSaveMappedKey]
+        newWorldItems = newWorldDict[newWorldMappedKey]
+        countdownItems = countdownDict[countdownMappedKey]
+
+        for countdownItem in countdownItems:
+            countdownName = finalCategories.transformItem(countdownItem[OutputJsonKeys.name.value], stopSet)
             _populateItem(items,
-                          countDownItem,
+                          countdownItem,
                           countdownName,
                           countdownName in items.keys(),
-                          key,
+                          countdownMappedKey,
                           SupportedStores.countdown)
 
-            if ckm in newWorldKeyMap:
-                for newWorldItem in newWorldDict[newWorldKeyMap[ckm]]:
-                    newWorldName = finalCategories.transformItem(newWorldItem[OutputJsonKeys.name.value], stopSet)
-
-                    itemExists = fuzz.partial_ratio(newWorldName, countdownName) > treshold and \
-                                 (countdownName in items.keys() or
-                                  newWorldName in items.keys())
-                    name = newWorldName
+            itemTuples = [(newWorldItems, SupportedStores.newWorld), (packNSaveItems, SupportedStores.packNSave)]
+            for itemTuple in itemTuples:
+                itemsList, supportedStore = itemTuple
+                for otherItem in itemsList:
+                    otherItemName = finalCategories.transformItem(otherItem[OutputJsonKeys.name.value], stopSet)
+                    itemExists = getRatio(otherItemName, countdownName) > treshold
+                    name = otherItemName
                     if itemExists:
                         name = countdownName
-                    _populateItem(items, newWorldItem, name, itemExists, key, SupportedStores.newWorld)
-            if ckm in newWorldKeys:
-                newWorldKeys.remove(ckm)
+                    _populateItem(items, otherItem, name, itemExists, countdownMappedKey, supportedStore)
 
-            if ckm in packNSaveKeyMap:
-                for packNSaveItem in packNSaveDict[packNSaveKeyMap[ckm]]:
-                    pakNSaveName = finalCategories.transformItem(packNSaveItem[OutputJsonKeys.name.value], stopSet)
+    pairs = [(newWorldCountDownKeys,
+              (countdownDict, SupportedStores.countdown, countdownKeyMap),
+              (newWorldDict, SupportedStores.newWorld, newWorldKeyMap)),
 
-                    itemExists = fuzz.partial_ratio(pakNSaveName, countdownName) > treshold and \
-                                 (countdownName in items.keys() or
-                                  pakNSaveName in items.keys())
-                    name = pakNSaveName
+             (packNSaveCountDownKeys,
+              (countdownDict, SupportedStores.countdown, countdownKeyMap),
+              (packNSaveDict, SupportedStores.packNSave, packNSaveKeyMap)),
+
+             (packNSaveNewworldKeys,
+              (packNSaveDict, SupportedStores.packNSave, packNSaveKeyMap),
+              (newWorldDict, SupportedStores.newWorld, newWorldKeyMap))]
+
+    for pair in pairs:
+        keys, supermarket1Tuple, supermarket2Tuple = pair
+        for key in keys:
+            supermarket1Dict, supermarket1Name, supermarket1KeyMap = supermarket1Tuple
+            supermarket2Dict, supermarket2Name, supermarket2KeyMap = supermarket2Tuple
+            supermarket1Key = supermarket1KeyMap[key]
+            supermarket2Key = supermarket2KeyMap[key]
+
+            for supermarket1Item in supermarket1Dict[supermarket1Key]:
+                supermarket1ItemName = finalCategories.transformItem(supermarket1Item[OutputJsonKeys.name.value],
+                                                                     stopSet)
+                _populateItem(items,
+                              supermarket1Item,
+                              supermarket1ItemName,
+                              supermarket1ItemName in items.keys(),
+                              supermarket1Key,
+                              supermarket1Name)
+
+                for supermarket2Item in supermarket2Dict[supermarket2Key]:
+                    supermarket2ItemName = finalCategories.transformItem(supermarket2Item[OutputJsonKeys.name.value],
+                                                                         stopSet)
+                    itemExists = getRatio(supermarket2ItemName, supermarket1ItemName) > treshold
+                    name = supermarket2ItemName
                     if itemExists:
-                        name = countdownName
-                    _populateItem(items, packNSaveItem, name, itemExists, key, SupportedStores.packNSave)
-            if ckm in packNSaveKeys:
-                packNSaveKeys.remove(ckm)
+                        name = supermarket1ItemName
 
-    commonKeys = set(newWorldKeyMap.keys()) & set(packNSaveKeyMap.keys())
-    for key in commonKeys:
-        for newWorldItem in newWorldDict[newWorldKeyMap[key]]:
-            newWorldName = finalCategories.transformItem(newWorldItem[OutputJsonKeys.name.value], stopSet)
+                    _populateItem(items,
+                                  supermarket2Item,
+                                  name,
+                                  itemExists,
+                                  supermarket1Key,
+                                  supermarket2Name)
 
-            _populateItem(items, newWorldItem, newWorldName, newWorldName in items.keys(), newWorldKeyMap[key],
-                          SupportedStores.newWorld)
+    supermarketTuples = [(countdownKeys, countdownDict, SupportedStores.countdown, countdownKeyMap),
+                         (newWorldKeys, newWorldDict, SupportedStores.newWorld, newWorldKeyMap),
+                         (packNSaveKeys, packNSaveDict, SupportedStores.packNSave, packNSaveKeyMap)]
 
-            for packNSaveItem in packNSaveDict[packNSaveKeyMap[key]]:
-                pakNSaveName = finalCategories.transformItem(packNSaveItem[OutputJsonKeys.name.value], stopSet)
+    for supermarketTuple in supermarketTuples:
+        supermarketKeys, supermarketDict, supermarketName, supermarketKeyMap = supermarketTuple
+        for key in supermarketKeys:
+            mappedKey = supermarketKeyMap[key]
+            for superMarketItem in supermarketDict[mappedKey]:
+                superMarketName = finalCategories.transformItem(superMarketItem[OutputJsonKeys.name.value], stopSet)
 
-                itemExists = fuzz.partial_ratio(pakNSaveName, newWorldName) > treshold and \
-                             (pakNSaveName in items.keys() or
-                              newWorldName in items.keys())
-                name = pakNSaveName
-                if itemExists:
-                    name = newWorldName
-                _populateItem(items, packNSaveItem, name, itemExists, newWorldKeyMap[key],
-                              SupportedStores.packNSave)
-        if key in packNSaveKeys:
-            packNSaveKeys.remove(key)
-        if key in newWorldKeys:
-            newWorldKeys.remove(key)
+                _populateItem(items,
+                              superMarketItem,
+                              superMarketName,
+                              superMarketName in items.keys(),
+                              mappedKey,
+                              supermarketName)
 
-    packNSaveKeys = [key for key in packNSaveKeys if key not in commonKeys]
-    newWorldKeys = [key for key in newWorldKeys if key not in commonKeys]
-
-    for ck in countdownKeys:
-        for countDownItem in countdownDict[countdownKeyMap[ck]]:
-            countdownName = finalCategories.transformItem(countDownItem[OutputJsonKeys.name.value], stopSet)
-            _populateItem(items, countDownItem, countdownName, countdownName in items.keys(), countdownKeyMap[ck],
-                          SupportedStores.countdown)
-
-    for nwk in newWorldKeys:
-        for newWorldItem in newWorldDict[newWorldKeyMap[nwk]]:
-            newWorldName = finalCategories.transformItem(newWorldItem[OutputJsonKeys.name.value], stopSet)
-            _populateItem(items, newWorldItem, newWorldName, newWorldName in items.keys(), newWorldKeyMap[nwk],
-                          SupportedStores.newWorld)
-
-    for psk in packNSaveKeys:
-        for pakNSaveItem in packNSaveDict[packNSaveKeyMap[psk]]:
-            pakNSaveName = finalCategories.transformItem(pakNSaveItem[OutputJsonKeys.name.value], stopSet)
-            _populateItem(items, pakNSaveItem, pakNSaveName, pakNSaveName in items.keys(), packNSaveKeyMap[psk],
-                          SupportedStores.packNSave)
+    print("cluster done")
     writeItemsToDB(items)
+
+
+ratioCache = {}
+
+
+def getRatio(name1, name2):
+    key = (name1, name2)
+    if key not in ratioCache:
+        ratioCache[key] = ratio(name1, name2)
+    return ratioCache[key]
 
 
 def read_json_file(file_name) -> dict[str, any]:

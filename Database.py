@@ -107,7 +107,6 @@ class Database:
             itemKeys = ",".join([key.value for key in ItemsTableKeys])
 
         sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({','.join(['%s'] * len(values[0]))})"
-        print(sql)
         self._cursor.executemany(sql, values)
         self._connection.commit()
 
@@ -201,7 +200,6 @@ class Database:
     def fetchCountdownItemsByPage(self, page: str):
         sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
               f" {SupermarketTableKeys.page.value} = {page}"
-        print(sql)
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
