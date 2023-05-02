@@ -1233,14 +1233,16 @@ nameToCategory = {
     "brinks": ['Other']
 }
 
-symbols = ['"', "'", ",", "\n", "[", "]", ".", "-"]
+symbols = ['"', "'", ",", "\n", "[", "]", ".", "-", "@"]
 
 
-def transformToKey(category: str) -> str:
-    category = category.replace(" and ", " & ").lower()
+def transformToKey(key: str) -> str:
+    key = key.replace(" and ", " & ").lower()
     for symbol in symbols:
-        category = category.replace(symbol, "")
-    return "-".join(category.split())
+        key = key.replace(symbol, "")
+    if key[-1] == "s":
+        key = key[:-1]
+    return "-".join(key.split())
 
 
 def transformItem(category: str, stopWords: set) -> str:
