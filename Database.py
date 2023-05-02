@@ -186,7 +186,7 @@ class Database:
                 items = file.readlines()
                 returnItems = []
                 for item in items:
-                    splitItem = item.split(',')
+                    splitItem = item.replace("\n", "").split(',')
                     if splitItem[ItemsTableKeysIndexes.itemId.value] in itemIds:
                         returnItems.append(splitItem)
                 return returnItems
@@ -266,7 +266,7 @@ class Database:
                 items = countdownFile.readlines()
                 returnItems = []
                 for item in items:
-                    splitItem = item.split(',')
+                    splitItem = item.replace("\n", "").split(',')
                     if splitItem[SupermarketTableIndexes.itemId.value] in itemIds:
                         returnItems.append(splitItem)
                 return returnItems
@@ -282,7 +282,7 @@ class Database:
                 items = countdownFile.readlines()
                 returnItems = []
                 for item in items:
-                    splitItem = item.split(',')
+                    splitItem = item.replace("\n", "").split(',')
                     if splitItem[SupermarketTableIndexes.page.value] == page:
                         returnItems.append(splitItem)
                 return returnItems
@@ -297,7 +297,7 @@ class Database:
                 items = file.readlines()
                 returnItems = []
                 for item in items:
-                    splitItem = item.split(',')
+                    splitItem = item.replace("\n", "").split(',')
                     if splitItem[SupermarketTableIndexes.itemId.value] in itemIds \
                             and splitItem[SupermarketTableIndexes.supermarketId.value] in storeIds:
                         returnItems.append(splitItem)
@@ -316,7 +316,7 @@ class Database:
                 items = file.readlines()
                 returnItems = []
                 for item in items:
-                    splitItem = item.split(',')
+                    splitItem = item.replace("\n", "").split(',')
                     if splitItem[SupermarketTableIndexes.page.value] == page \
                             and splitItem[SupermarketTableIndexes.supermarketId.value] in storeIds:
                         returnItems.append(splitItem)
