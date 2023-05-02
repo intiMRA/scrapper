@@ -241,10 +241,9 @@ def parseItemToString(values: list[str]) -> str:
 def _populateItem(items: dict[str, any],
                   dictionary: dict[str, any],
                   itemId: str,
-                  itemExists: bool,
                   brand: str,
                   supermarket: SupportedStores):
-    if (not itemExists) and itemId not in items.keys():
+    if itemId not in items.keys():
         items[itemId] = {}
 
         for key in [ConcatcKeys.countdownItemNames.value,
@@ -360,7 +359,7 @@ def clusterData():
         previousNames = []
         for countdownItem in countdownItems:
             countdownName = finalCategories.transformItem(countdownItem[OutputJsonKeys.name.value], stopSet)
-            countdownId = str(uuid1())
+            countdownId = countdownName + countdownMappedKey
             for prevName in previousNames:
                 if getRatio(prevName[0], countdownName) > threshold:
                     countdownId = prevName[-1]
@@ -369,7 +368,6 @@ def clusterData():
             _populateItem(items,
                           countdownItem,
                           countdownId,
-                          countdownId in items.keys(),
                           countdownMappedKey,
                           SupportedStores.countdown)
 
@@ -379,13 +377,13 @@ def clusterData():
                 for otherItem in itemsList:
                     otherItemName = finalCategories.transformItem(otherItem[OutputJsonKeys.name.value], stopSet)
                     itemExists = getRatio(otherItemName, countdownName) > threshold
-                    itemId = str(uuid1())
+                    itemId = otherItemName
                     if itemExists:
                         itemId = countdownId
+                    itemId = itemId + countdownMappedKey
                     _populateItem(items,
                                   otherItem,
                                   itemId,
-                                  itemExists,
                                   countdownMappedKey,
                                   supportedStore)
 
@@ -412,7 +410,7 @@ def clusterData():
             for supermarket1Item in supermarket1Dict[supermarket1Key]:
                 supermarket1ItemName = finalCategories.transformItem(supermarket1Item[OutputJsonKeys.name.value],
                                                                      stopSet)
-                supermarket1Id = str(uuid1())
+                supermarket1Id = supermarket1ItemName + supermarket1Key
                 for prevName in supermarket1PreviousItemNames:
                     if getRatio(prevName[0], supermarket1ItemName) > threshold:
                         supermarket1Id = prevName[-1]
@@ -422,7 +420,6 @@ def clusterData():
                 _populateItem(items,
                               supermarket1Item,
                               supermarket1Id,
-                              supermarket1Id in items.keys(),
                               supermarket1Key,
                               supermarket1Name)
 
@@ -430,14 +427,14 @@ def clusterData():
                     supermarket2ItemName = finalCategories.transformItem(supermarket2Item[OutputJsonKeys.name.value],
                                                                          stopSet)
                     itemExists = getRatio(supermarket2ItemName, supermarket1ItemName) > threshold
-                    itemId = str(uuid1())
+                    itemId = supermarket2ItemName
                     if itemExists:
                         itemId = supermarket1Id
+                    itemId = itemId + supermarket1Key
 
                     _populateItem(items,
                                   supermarket2Item,
                                   itemId,
-                                  itemExists,
                                   supermarket1Key,
                                   supermarket2Name)
 
@@ -452,7 +449,7 @@ def clusterData():
             previousNames = []
             for superMarketItem in supermarketDict[mappedKey]:
                 superMarketName = finalCategories.transformItem(superMarketItem[OutputJsonKeys.name.value], stopSet)
-                supermarketId = str(uuid1())
+                supermarketId = superMarketName + mappedKey
                 for prevName in previousNames:
                     if getRatio(prevName[0], superMarketName) > threshold:
                         supermarketId = prevName[-1]
@@ -461,7 +458,6 @@ def clusterData():
                 _populateItem(items,
                               superMarketItem,
                               supermarketId,
-                              supermarketId in items.keys(),
                               mappedKey,
                               supermarketName)
 
@@ -473,7 +469,7 @@ ratioCache = {}
 
 
 def getRatio(name1, name2):
-    key = (name1, name2)
+    key = tuple(sorted((name1, name2)))
     if key not in ratioCache:
         ratioCache[key] = ratio(name1, name2)
     return ratioCache[key]
