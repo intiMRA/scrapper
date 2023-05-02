@@ -91,8 +91,14 @@ class ConcatcKeys(Enum):
 class Database:
     _connection = None
     _cursor = None
+    _debug = False
+
+    def __init__(self, debug=False):
+        self._debug = debug
 
     def insertStores(self, values: list, table: StoreTables):
+        if self._debug:
+            return
         sql = f"INSERT INTO {table.value} ({','.join([key.value for key in StoreTablesKeys])}) " \
               f"VALUES ({','.join(['%s'] * len(values[0]))})"
         self._cursor.executemany(sql, values)
@@ -106,11 +112,23 @@ class Database:
         if table == ItemTables.items:
             itemKeys = ",".join([key.value for key in ItemsTableKeys])
 
-        sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({','.join(['%s'] * len(values[0]))})"
+        valuesString = ','.join(['%s'] * len(values[0]))
+        if self._debug:
+            with open(f'{table.value}.txt', mode="a+") as file:
+                for value in values:
+                    file.write(','.join(value) + "\n")
+            return
+
+        sql = f"INSERT INTO {table.value} ({itemKeys}) VALUES ({valuesString})"
         self._cursor.executemany(sql, values)
         self._connection.commit()
 
     def createTable(self):
+        if self._debug:
+            for table in ItemTables:
+                f = open(f"{table.value}.txt", mode="w")
+                f.close()
+            return
         # items
         # itemId, category, brand, page
 
@@ -137,6 +155,11 @@ class Database:
             self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {store_table.value} ({store_keys})")
 
     def dropTables(self):
+        if self._debug:
+            for table in ItemTables:
+                f = open(f"{table.value}.txt", mode="w")
+                f.close()
+            return
         for table in ItemTables:
             self._cursor.execute(f"DROP TABLE {table.value}")
 
@@ -144,15 +167,29 @@ class Database:
             self._cursor.execute(f"DROP TABLE {table.value}")
 
     def printTables(self):
+        if self._debug:
+            return
         self._cursor.execute("SHOW TABLES")
         for table in self._cursor:
             print(table)
 
     def fetchAllItems(self, table: Enum):
+        if self._debug:
+            return
         self._cursor.execute(f"SELECT * FROM {table.value}")
         return self._cursor.fetchall()
 
     def fetchItemsById(self, itemIds):
+        if self._debug:
+            itemIds = set(itemIds)
+            with open(f'{ItemTables.items.value}.txt', mode='r') as file:
+                items = file.readlines()
+                returnItems = []
+                for item in items:
+                    splitItem = item.split(',')
+                    if splitItem[ItemsTableKeysIndexes.itemId.value] in itemIds:
+                        returnItems.append(splitItem)
+                return returnItems
         itemIdsString = ', '.join(f'"{w}"' for w in itemIds)
         sql = f"SELECT * FROM {ItemTables.items.value} " \
               f"WHERE {ItemsTableKeys.itemId.value} IN ({itemIdsString})"
@@ -160,29 +197,62 @@ class Database:
         return self._cursor.fetchall()
 
     def fetchItemsByName(self, query, newWorldIds: [str], packNSaveIds: [str]):
-        self._cursor.execute(f"SELECT * FROM {ItemTables.countdown.value} "
-                             f"WHERE {SupermarketTableKeys.name.value} "
-                             f"like '%{query}%' LIMIT 1000")
+        countdownItems = []
+        newWorldItems = []
+        packNSaveItems = []
+        if self._debug:
+            with open(f'{ItemTables.countdown.value}.txt', mode='r') as countdownFile:
+                items = countdownFile.readlines()
+                for item in items:
+                    splitItem = item.split(",")
+                    if query in splitItem[SupermarketTableIndexes.name.value]:
+                        countdownItems.append(splitItem)
+                    if len(countdownItems) > 1000:
+                        break
 
-        countdownItems = self._cursor.fetchall()
+            with open(f'{ItemTables.newWorld.value}.txt', mode='r') as newWorldFile:
+                items = newWorldFile.readlines()
+                for item in items:
+                    splitItem = item.split(",")
+                    if query in splitItem[SupermarketTableIndexes.name.value] \
+                            and splitItem[SupermarketTableIndexes.supermarketId.value] in newWorldIds:
+                        newWorldItems.append(splitItem)
+                    if len(newWorldItems) > 1000:
+                        break
 
-        self._cursor.execute(f"SELECT * FROM {ItemTables.newWorld.value} "
-                             f"WHERE ({SupermarketTableKeys.name.value} "
-                             f"like %s "
-                             f"AND {SupermarketTableKeys.supermarketId.value} "
-                             f"IN ({','.join(['%s'] * len(newWorldIds))}))"
-                             f"LIMIT 1000", ('%' + query + '%',) + tuple(newWorldIds))
+            with open(f'{ItemTables.pakNSave.value}.txt', mode='r') as packNSaveFile:
+                items = packNSaveFile.readlines()
+                for item in items:
+                    splitItem = item.split(",")
+                    if query in splitItem[SupermarketTableIndexes.name.value] \
+                            and splitItem[SupermarketTableIndexes.supermarketId.value] in packNSaveIds:
+                        packNSaveItems.append(splitItem)
+                    if len(packNSaveItems) > 1000:
+                        break
+        else:
+            self._cursor.execute(f"SELECT * FROM {ItemTables.countdown.value} "
+                                 f"WHERE {SupermarketTableKeys.name.value} "
+                                 f"like '%{query}%' LIMIT 1000")
 
-        newWorldItems = self._cursor.fetchall()
+            countdownItems = self._cursor.fetchall()
 
-        self._cursor.execute(f"SELECT * FROM {ItemTables.pakNSave.value} "
-                             f"WHERE ({SupermarketTableKeys.name.value} "
-                             f"like %s "
-                             f"AND {SupermarketTableKeys.supermarketId.value} "
-                             f"IN ({','.join(['%s'] * len(packNSaveIds))}))"
-                             f"LIMIT 1000", ('%' + query + '%',) + tuple(packNSaveIds))
+            self._cursor.execute(f"SELECT * FROM {ItemTables.newWorld.value} "
+                                 f"WHERE ({SupermarketTableKeys.name.value} "
+                                 f"like %s "
+                                 f"AND {SupermarketTableKeys.supermarketId.value} "
+                                 f"IN ({','.join(['%s'] * len(newWorldIds))}))"
+                                 f"LIMIT 1000", ('%' + query + '%',) + tuple(newWorldIds))
 
-        packNSaveItems = self._cursor.fetchall()
+            newWorldItems = self._cursor.fetchall()
+
+            self._cursor.execute(f"SELECT * FROM {ItemTables.pakNSave.value} "
+                                 f"WHERE ({SupermarketTableKeys.name.value} "
+                                 f"like %s "
+                                 f"AND {SupermarketTableKeys.supermarketId.value} "
+                                 f"IN ({','.join(['%s'] * len(packNSaveIds))}))"
+                                 f"LIMIT 1000", ('%' + query + '%',) + tuple(packNSaveIds))
+
+            packNSaveItems = self._cursor.fetchall()
 
         return {
             ItemTables.countdown.value: countdownItems,
@@ -191,6 +261,15 @@ class Database:
         }
 
     def fetchCountdownItemsByIds(self, itemIds):
+        if self._debug:
+            with open(f'{ItemTables.countdown.value}.txt', mode='r') as countdownFile:
+                items = countdownFile.readlines()
+                returnItems = []
+                for item in items:
+                    splitItem = item.split(',')
+                    if splitItem[SupermarketTableIndexes.itemId.value] in itemIds:
+                        returnItems.append(splitItem)
+                return returnItems
         sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
               f" {SupermarketTableKeys.itemId.value} IN" \
               f" ({','.join(itemIds)})"
@@ -198,12 +277,31 @@ class Database:
         return self._cursor.fetchall()
 
     def fetchCountdownItemsByPage(self, page: str):
+        if self._debug:
+            with open(f'{ItemTables.countdown.value}.txt', mode='r') as countdownFile:
+                items = countdownFile.readlines()
+                returnItems = []
+                for item in items:
+                    splitItem = item.split(',')
+                    if splitItem[SupermarketTableIndexes.page.value] == page:
+                        returnItems.append(splitItem)
+                return returnItems
         sql = f"SELECT * FROM {ItemTables.countdown.value} WHERE" \
               f" {SupermarketTableKeys.page.value} = {page}"
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
     def fetchFoodStuffsItemsIds(self, itemIds, storeIds, table: ItemTables):
+        if self._debug:
+            with open(f'{table.value}.txt', mode='r') as file:
+                items = file.readlines()
+                returnItems = []
+                for item in items:
+                    splitItem = item.split(',')
+                    if splitItem[SupermarketTableIndexes.itemId.value] in itemIds \
+                            and splitItem[SupermarketTableIndexes.supermarketId.value] in storeIds:
+                        returnItems.append(splitItem)
+                return returnItems
         itemIdsString = ', '.join(f'"{w}"' for w in itemIds)
         storeIdsString = ', '.join(f'"{w}"' for w in storeIds)
         sql = f"SELECT * FROM {table.value} " \
@@ -213,6 +311,16 @@ class Database:
         return self._cursor.fetchall()
 
     def fetchFoodStuffsItemsByPage(self, page: str, storeIds, table: ItemTables):
+        if self._debug:
+            with open(f'{table.value}.txt', mode='r') as file:
+                items = file.readlines()
+                returnItems = []
+                for item in items:
+                    splitItem = item.split(',')
+                    if splitItem[SupermarketTableIndexes.page.value] == page \
+                            and splitItem[SupermarketTableIndexes.supermarketId.value] in storeIds:
+                        returnItems.append(splitItem)
+                return returnItems
         storeIdsString = ', '.join(f'"{w}"' for w in storeIds)
         sql = f"SELECT * FROM {table.value} " \
               f"WHERE ({SupermarketTableKeys.page.value} = {page} " \
@@ -221,6 +329,8 @@ class Database:
         return self._cursor.fetchall()
 
     def fetchItemsByCategory(self, categories):
+        if self._debug:
+            return
         query = ' OR '.join([f"{ConcatcKeys.category.value} like '%{category}%'" for category in categories])
         fullQuery = f"SELECT * FROM {ItemTables.items.value} " \
                     f"WHERE {query}"
@@ -228,6 +338,8 @@ class Database:
         return self._cursor.fetchall()
 
     def testConnection(self):
+        if self._debug:
+            return
         self.startConnection()
         self._cursor.execute("select @@version")
         version = self._cursor.fetchone()
@@ -239,6 +351,8 @@ class Database:
         self.closeConnection()
 
     def startConnection(self):
+        if self._debug:
+            return
         self._connection = mysql.connector.connect(
             host=os.getenv("HOST"),
             user=os.getenv("USERNAME"),
@@ -249,5 +363,7 @@ class Database:
         self._cursor = self._connection.cursor()
 
     def closeConnection(self):
+        if self._debug:
+            return
         self._connection.close()
         self._cursor = None

@@ -6,12 +6,13 @@ from geopy import distance
 from typing import NewType
 
 ResponseType = NewType("Response", dict[str, list[list[dict[str, any]]]])
+debug = True
 
 
 def fetchStores(lat: str, long: str, radius: str) -> dict[str, list[dict[str, str]]]:
     radius = float(radius)
     location = (float(lat), float(long))
-    db = Database()
+    db = Database(debug)
     db.startConnection()
     newWorldStores = db.fetchAllItems(StoreTables.newWorldStores)
     packNSaveStores = db.fetchAllItems(StoreTables.pakNSaveStores)
@@ -36,7 +37,7 @@ def fetchStores(lat: str, long: str, radius: str) -> dict[str, list[dict[str, st
 
 
 def searchForItems(query: str, newWorldIds: list[str], packNSaveIds: list[str]) -> ResponseType:
-    db = Database()
+    db = Database(debug)
     db.startConnection()
     items = db.fetchItemsByName(query, newWorldIds, packNSaveIds)
     newWorldItems = items[ItemTables.newWorld.value]
@@ -62,7 +63,7 @@ def sortByName(items: list[dict[str, any]], query: str = "a", alphabetical: bool
 
 
 def fetchPage(page: str, newWorldIds: list[str], packNSaveIds: list[str]) -> ResponseType:
-    db = Database()
+    db = Database(debug)
     db.startConnection()
     countdownItems = db.fetchCountdownItemsByPage(page)
     newWorldItems = db.fetchFoodStuffsItemsByPage(page, newWorldIds, ItemTables.newWorld)
@@ -221,7 +222,7 @@ def _parseSuperMarketItemsToDict(supermarketItems: list[tuple],
 
 
 def fetchCategories(categories: [str], newWorldIds: list[str], packNSaveIds: list[str]) -> ResponseType:
-    db = Database()
+    db = Database(debug)
     db.startConnection()
     items = db.fetchItemsByCategory(categories)
     itemIds = []
