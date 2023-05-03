@@ -204,7 +204,7 @@ class Database:
             with open(f'{ItemTables.countdown.value}.txt', mode='r') as countdownFile:
                 items = countdownFile.readlines()
                 for item in items:
-                    splitItem = item.split(",")
+                    splitItem = item.replace("\n", "").split(",")
                     if query in splitItem[SupermarketTableIndexes.name.value]:
                         countdownItems.append(splitItem)
                     if len(countdownItems) > 1000:
@@ -213,7 +213,7 @@ class Database:
             with open(f'{ItemTables.newWorld.value}.txt', mode='r') as newWorldFile:
                 items = newWorldFile.readlines()
                 for item in items:
-                    splitItem = item.split(",")
+                    splitItem = item.replace("\n", "").split(",")
                     if query in splitItem[SupermarketTableIndexes.name.value] \
                             and splitItem[SupermarketTableIndexes.supermarketId.value] in newWorldIds:
                         newWorldItems.append(splitItem)
@@ -223,7 +223,7 @@ class Database:
             with open(f'{ItemTables.pakNSave.value}.txt', mode='r') as packNSaveFile:
                 items = packNSaveFile.readlines()
                 for item in items:
-                    splitItem = item.split(",")
+                    splitItem = item.replace("\n", "").split(",")
                     if query in splitItem[SupermarketTableIndexes.name.value] \
                             and splitItem[SupermarketTableIndexes.supermarketId.value] in packNSaveIds:
                         packNSaveItems.append(splitItem)
