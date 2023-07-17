@@ -63,6 +63,7 @@ def writeItemsToDB(items: dict[str, dict[str, any]]):
     countdownPageCount = 0
     newWorldPageCounts = {}
     packNSavePageCounts = {}
+    categories = []
 
     itemValues = []
 
@@ -79,6 +80,10 @@ def writeItemsToDB(items: dict[str, dict[str, any]]):
     for item in items:
         itemId = str(uuid1())
         itemValue = [itemId, item[ItemsTableKeys.category.value], item[ItemsTableKeys.brand.value]]
+        itemCategories = item[ItemsTableKeys.category.value]
+        for cat in itemCategories.split("@"):
+            if cat not in categories:
+                categories.append(cat)
         itemValues.append(itemValue)
         if item[ConcatcKeys.countdownItemNames.value]:
             countdownItem = [itemId,
@@ -160,6 +165,7 @@ def writeItemsToDB(items: dict[str, dict[str, any]]):
         print(f"{itemsCount / totalItems:.2%} of items done")
 
     db.startConnection()
+    db.insertCategoryNames(categories)
     allQueries = (len(itemValues) // maxItemsPerQuery) + \
                  (len(countdownValues) // maxItemsPerQuery) + \
                  (len(packNSaveValues) // maxItemsPerQuery) + \
@@ -249,12 +255,8 @@ def _populateItem(items: dict[str, any],
                   brand: str,
                   supermarket: SupportedStores):
     itemId = itemId.lower()
-    if "twix" in brand:
-        print(f"1 {itemId}")
     if itemId not in items.keys():
         items[itemId] = {}
-        if "twix" in brand:
-            print(f"2 {itemId}")
         for key in [ConcatcKeys.countdownItemNames.value,
                     ConcatcKeys.countdownPrices.value,
                     ConcatcKeys.countdownSizes.value,

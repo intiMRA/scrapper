@@ -41,7 +41,9 @@ def getCategories():
     categories = args[ParameterKeys.categories.value].split(",")
     return SupermaketItems.fetchCategories(categories, newWorldIds, packNSaveIds)
 
-
+@app.route('/items/categoryNames')
+def getCategoryNames():
+    return SupermaketItems.fetchCategoryNames()
 @app.route('/stores')
 def getStores():
     args = request.args.to_dict()
