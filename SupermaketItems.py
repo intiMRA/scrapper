@@ -1,4 +1,4 @@
-import difflib
+from fuzzywuzzy.fuzz import token_sort_ratio as ratio
 from Database import Database
 from Database import ItemsTableKeys, SupermarketTableKeys, SupermarketTableIndexes, ItemTables, \
     StoreTables, StoreTablesKeys, StoreTablesIndexes, ItemsTableKeysIndexes
@@ -56,9 +56,9 @@ def sortByName(items: list[dict[str, any]], query: str = "a", alphabetical: bool
     for item in items:
         itemName = item[SupermarketTableKeys.name.value]
         if alphabetical:
-            ratios += difflib.SequenceMatcher(None, itemName, query * len(itemName)).ratio()
+            ratios += ratio(itemName, query * len(itemName))
         else:
-            ratios += difflib.SequenceMatcher(None, itemName, query).ratio()
+            ratios += ratio(itemName, query)
     return ratios / (len(items))
 
 
@@ -70,9 +70,7 @@ def fetchPage(page: str, newWorldIds: list[str], packNSaveIds: list[str]) -> Res
     packNSaveItems = db.fetchFoodStuffsItemsByPage(page, packNSaveIds, ItemTables.pakNSave)
     itemsDictionary = _parseResponse(db, countdownItems, newWorldItems, packNSaveItems)
     outPutItemArray = []
-    for items in sorted(itemsDictionary.values(),
-                        key=lambda itemGroups: sortByName(itemGroups, alphabetical=True),
-                        reverse=True):
+    for items in itemsDictionary.values():
         outPutItemArray.append(sorted(items, key=lambda item: item[SupermarketTableKeys.name.value]))
 
     return {ItemTables.items.value: outPutItemArray}
@@ -265,9 +263,13 @@ def fetchCategories(categories: [str], newWorldIds: list[str], packNSaveIds: lis
             itemsDictionary[itemId].append(outPutItem)
 
     outPutItemArray = []
-    for item in sorted(itemsDictionary.values(),
-                       key=lambda itemGroups: sortByName(itemGroups, alphabetical=True),
-                       reverse=True):
+    for item in itemsDictionary.values():
         outPutItemArray.append(item)
 
     return {ItemTables.items.value: outPutItemArray}
+
+def fetchCategoryNames() -> ResponseType:
+    db = Database(debug)
+    db.startConnection()
+    items = db.fetchCategoryNames()
+    return {"categoryNames": items}
